@@ -1,4 +1,4 @@
-name: Compiler VIGIA AI APK
+name: Compiler VIGIA AI APK (MEGA-SPRINT)
 
 on:
   push:
@@ -27,17 +27,18 @@ jobs:
           mkdir -p vigia-app/app/src/main/java/com/vigia/ai/services
           mkdir -p vigia-app/app/src/main/java/com/vigia/ai/core
           mkdir -p vigia-app/app/src/main/java/com/vigia/ai/domain
+          mkdir -p vigia-app/app/src/main/java/com/vigia/ai/data
           mkdir -p vigia-app/app/src/main/res/values
           cd vigia-app
           
-          # Propriétés de base
+          # Propriétés
           cat << 'EOF' > gradle.properties
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           android.useAndroidX=true
           android.nonTransitiveRClass=true
           EOF
           
-          # Paramètres du projet
+          # Configuration Projet
           cat << 'EOF' > settings.gradle.kts
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
@@ -52,13 +53,17 @@ jobs:
           }
           EOF
           
-          # Module App
+          # Module App (Ajout de Kapt pour Room Database + Navigation)
           cat << 'EOF' > app/build.gradle.kts
-          plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
+          plugins { 
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android") 
+              kotlin("kapt")
+          }
           android {
               namespace = "com.vigia.ai"
               compileSdk = 34
-              defaultConfig { applicationId = "com.vigia.ai"; minSdk = 26; targetSdk = 34; versionCode = 1; versionName = "1.0.0" }
+              defaultConfig { applicationId = "com.vigia.ai"; minSdk = 26; targetSdk = 34; versionCode = 2; versionName = "1.1.0" }
               compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
               kotlinOptions { jvmTarget = "17" }
               buildFeatures { compose = true }
@@ -74,6 +79,14 @@ jobs:
               implementation("androidx.compose.ui:ui-graphics")
               implementation("androidx.compose.ui:ui-tooling-preview")
               implementation("androidx.compose.material3:material3")
+              
+              // Navigation
+              implementation("androidx.navigation:navigation-compose:2.7.7")
+              
+              // Room Database (Stockage local réel)
+              implementation("androidx.room:room-runtime:2.6.1")
+              implementation("androidx.room:room-ktx:2.6.1")
+              kapt("androidx.room:room-compiler:2.6.1")
           }
           EOF
           
@@ -81,16 +94,23 @@ jobs:
           <resources><string name="app_name">VIGIA AI</string></resources>
           EOF
           
+          # MANIFESTE AVEC SHARE TARGET INTENT
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
               <application android:label="@string/app_name" android:allowBackup="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+                  <!-- L'Activité principale devient une cible de partage Android (Share Target) -->
                   <activity android:name=".MainActivity" android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                      <intent-filter>
+                          <action android:name="android.intent.action.SEND" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <data android:mimeType="text/plain" />
                       </intent-filter>
                   </activity>
                   <service android:name=".services.VigiaNotificationListenerService" android:label="VIGIA Guard" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true">
@@ -100,6 +120,57 @@ jobs:
           </manifest>
           EOF
           
+          # BASE DE DONNÉES ROOM (ARCHITECTURE LOCALE)
+          cat << 'EOF' > app/src/main/java/com/vigia/ai/data/VigiaDatabase.kt
+          package com.vigia.ai.data
+          import android.content.Context
+          import androidx.room.*
+          import kotlinx.coroutines.flow.Flow
+          
+          @Entity(tableName = "history_table")
+          data class AnalysisHistory(
+              @PrimaryKey(autoGenerate = true) val id: Int = 0,
+              val type: String, // GUARD ou VERIFY
+              val contentSummary: String,
+              val riskScore: Int,
+              val riskLevel: String,
+              val timestamp: Long = System.currentTimeMillis()
+          )
+          
+          @Dao
+          interface HistoryDao {
+              @Query("SELECT * FROM history_table ORDER BY timestamp DESC")
+              fun getAllHistory(): Flow<List<AnalysisHistory>>
+              
+              @Insert(onConflict = OnConflictStrategy.REPLACE)
+              suspend fun insertHistory(history: AnalysisHistory)
+              
+              @Query("DELETE FROM history_table")
+              suspend fun clearHistory()
+          }
+          
+          @Database(entities = [AnalysisHistory::class], version = 1, exportSchema = false)
+          abstract class VigiaDatabase : RoomDatabase() {
+              abstract fun historyDao(): HistoryDao
+              
+              companion object {
+                  @Volatile private var INSTANCE: VigiaDatabase? = null
+                  fun getDatabase(context: Context): VigiaDatabase {
+                      return INSTANCE ?: synchronized(this) {
+                          val instance = Room.databaseBuilder(
+                              context.applicationContext,
+                              VigiaDatabase::class.java,
+                              "vigia_database"
+                          ).build()
+                          INSTANCE = instance
+                          instance
+                      }
+                  }
+              }
+          }
+          EOF
+          
+          # MOTEUR DE RISQUE
           cat << 'EOF' > app/src/main/java/com/vigia/ai/domain/LocalRiskEngine.kt
           package com.vigia.ai.domain
           import java.util.Locale
@@ -141,6 +212,7 @@ jobs:
           }
           EOF
           
+          # VIGIA GUARD (Mise à jour : sauvegarde en base de données)
           cat << 'EOF' > app/src/main/java/com/vigia/ai/services/VigiaNotificationListenerService.kt
           package com.vigia.ai.services
           import android.app.NotificationChannel
@@ -154,7 +226,15 @@ jobs:
           import com.vigia.ai.domain.LocalRiskEngine
           import com.vigia.ai.domain.RiskLevel
           import com.vigia.ai.domain.RiskResult
+          import com.vigia.ai.data.VigiaDatabase
+          import com.vigia.ai.data.AnalysisHistory
+          import kotlinx.coroutines.CoroutineScope
+          import kotlinx.coroutines.Dispatchers
+          import kotlinx.coroutines.launch
+          
           class VigiaNotificationListenerService : NotificationListenerService() {
+              private val serviceScope = CoroutineScope(Dispatchers.IO)
+              
               override fun onNotificationPosted(sbn: StatusBarNotification?) {
                   if (sbn == null || sbn.packageName == applicationContext.packageName) return
                   val extras = sbn.notification.extras
@@ -163,6 +243,14 @@ jobs:
                   val fullContent = "$title $text"
                   if (fullContent.isNotBlank()) {
                       val riskResult = LocalRiskEngine.analyzeText(fullContent)
+                      
+                      // Sauvegarde réelle dans la DB
+                      serviceScope.launch {
+                          val db = VigiaDatabase.getDatabase(applicationContext)
+                          val summary = if (fullContent.length > 50) fullContent.take(50) + "..." else fullContent
+                          db.historyDao().insertHistory(AnalysisHistory(type = "GUARD (Auto)", contentSummary = summary, riskScore = riskResult.score, riskLevel = riskResult.level.label))
+                      }
+                      
                       if (riskResult.level == RiskLevel.ELEVE || riskResult.level == RiskLevel.CRITIQUE) { triggerVigiaAlert(riskResult) }
                   }
               }
@@ -188,7 +276,7 @@ jobs:
           }
           EOF
           
-          # LE CORRECTIF EXACT EST ICI (LocalLifecycleOwner au bon endroit)
+          # LE COEUR DE L'APP (Navigation + Ecrans Verify/Historique)
           cat << 'EOF' > app/src/main/java/com/vigia/ai/MainActivity.kt
           package com.vigia.ai
           
@@ -197,32 +285,177 @@ jobs:
           import android.provider.Settings
           import androidx.activity.ComponentActivity
           import androidx.activity.compose.setContent
+          import androidx.compose.animation.animateColorAsState
+          import androidx.compose.animation.core.tween
           import androidx.compose.foundation.background
+          import androidx.compose.foundation.border
+          import androidx.compose.foundation.clickable
           import androidx.compose.foundation.layout.*
+          import androidx.compose.foundation.lazy.LazyColumn
+          import androidx.compose.foundation.lazy.items
+          import androidx.compose.foundation.shape.CircleShape
           import androidx.compose.foundation.shape.RoundedCornerShape
           import androidx.compose.material3.*
           import androidx.compose.runtime.*
-          import androidx.compose.runtime.getValue
-          import androidx.compose.runtime.setValue
           import androidx.compose.ui.Alignment
           import androidx.compose.ui.Modifier
+          import androidx.compose.ui.draw.clip
+          import androidx.compose.ui.graphics.Brush
           import androidx.compose.ui.graphics.Color
           import androidx.compose.ui.platform.LocalContext
           import androidx.compose.ui.platform.LocalLifecycleOwner
           import androidx.compose.ui.text.font.FontWeight
+          import androidx.compose.ui.text.style.TextAlign
           import androidx.compose.ui.unit.dp
           import androidx.compose.ui.unit.sp
           import androidx.lifecycle.Lifecycle
           import androidx.lifecycle.LifecycleEventObserver
+          import androidx.navigation.compose.*
           import com.vigia.ai.core.PermissionChecker
+          import com.vigia.ai.data.VigiaDatabase
+          import com.vigia.ai.data.AnalysisHistory
+          import com.vigia.ai.domain.LocalRiskEngine
+          import com.vigia.ai.domain.RiskResult
+          import kotlinx.coroutines.launch
+          import kotlinx.coroutines.Dispatchers
           
           class MainActivity : ComponentActivity() {
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
+                  
+                  // Interception du Partage Android (VIGIA VERIFY)
+                  var sharedText: String? = null
+                  if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
+                      sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+                  }
+                  
                   setContent {
-                      MaterialTheme(colorScheme = darkColorScheme()) {
-                          Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                              VigiaHomeScreen()
+                      VigiaPremiumTheme {
+                          VigiaAppNavigation(sharedText)
+                      }
+                  }
+              }
+          }
+          
+          @Composable
+          fun VigiaPremiumTheme(content: @Composable () -> Unit) {
+              val colors = darkColorScheme(
+                  background = Color(0xFF0B0F19), surface = Color(0xFF151D2E),
+                  primary = Color(0xFF00E5FF), onPrimary = Color.Black,
+                  onBackground = Color.White, onSurface = Color(0xFFE2E8F0)
+              )
+              MaterialTheme(colorScheme = colors, content = content)
+          }
+          
+          @Composable
+          fun VigiaAppNavigation(sharedText: String?) {
+              val navController = rememberNavController()
+              // Si un texte est partagé, on force l'ouverture sur l'onglet Verify
+              val startDestination = if (sharedText != null) "verify" else "guard"
+              
+              Scaffold(
+                  bottomBar = {
+                      NavigationBar(containerColor = Color(0xFF111827)) {
+                          val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+                          NavigationBarItem(
+                              selected = currentRoute == "guard",
+                              onClick = { navController.navigate("guard") },
+                              icon = { Text("🛡️", fontSize = 20.sp) },
+                              label = { Text("Guard", color = Color.White) }
+                          )
+                          NavigationBarItem(
+                              selected = currentRoute == "verify",
+                              onClick = { navController.navigate("verify") },
+                              icon = { Text("🔍", fontSize = 20.sp) },
+                              label = { Text("Verify", color = Color.White) }
+                          )
+                          NavigationBarItem(
+                              selected = currentRoute == "history",
+                              onClick = { navController.navigate("history") },
+                              icon = { Text("🗄️", fontSize = 20.sp) },
+                              label = { Text("Historique", color = Color.White) }
+                          )
+                      }
+                  }
+              ) { paddingValues ->
+                  NavHost(navController = navController, startDestination = startDestination, modifier = Modifier.padding(paddingValues)) {
+                      composable("guard") { VigiaDashboardScreen() }
+                      composable("verify") { VigiaVerifyScreen(sharedText) }
+                      composable("history") { VigiaHistoryScreen() }
+                  }
+              }
+          }
+          
+          @Composable
+          fun VigiaVerifyScreen(sharedText: String?) {
+              val context = LocalContext.current
+              val coroutineScope = rememberCoroutineScope()
+              var textToAnalyze by remember { mutableStateOf(sharedText ?: "") }
+              var result by remember { mutableStateOf<RiskResult?>(null) }
+              
+              // Si un texte a été partagé, lancer l'analyse automatiquement
+              LaunchedEffect(sharedText) {
+                  if (!sharedText.isNullOrBlank()) {
+                      result = LocalRiskEngine.analyzeText(sharedText)
+                      coroutineScope.launch(Dispatchers.IO) {
+                          val summary = if (sharedText.length > 50) sharedText.take(50) + "..." else sharedText
+                          VigiaDatabase.getDatabase(context).historyDao().insertHistory(
+                              AnalysisHistory(type = "VERIFY (Partage)", contentSummary = summary, riskScore = result!!.score, riskLevel = result!!.level.label)
+                          )
+                      }
+                  }
+              }
+          
+              Column(modifier = Modifier.fillMaxSize().background(Color(0xFF0B0F19)).padding(24.dp)) {
+                  Text("VIGIA Verify", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                  Text("Analyse instantanée des messages et liens suspectés.", color = Color(0xFF94A3B8))
+                  Spacer(modifier = Modifier.height(24.dp))
+                  
+                  OutlinedTextField(
+                      value = textToAnalyze,
+                      onValueChange = { textToAnalyze = it; result = null },
+                      label = { Text("Collez un texte ou un lien ici", color = Color.Gray) },
+                      modifier = Modifier.fillMaxWidth().height(150.dp),
+                      colors = OutlinedTextFieldDefaults.colors(
+                          unfocusedBorderColor = Color(0xFF334155),
+                          focusedBorderColor = Color(0xFF00E5FF),
+                          unfocusedTextColor = Color.White,
+                          focusedTextColor = Color.White
+                      )
+                  )
+                  
+                  Spacer(modifier = Modifier.height(16.dp))
+                  Button(
+                      onClick = {
+                          if (textToAnalyze.isNotBlank()) {
+                              result = LocalRiskEngine.analyzeText(textToAnalyze)
+                              coroutineScope.launch(Dispatchers.IO) {
+                                  val summary = if (textToAnalyze.length > 50) textToAnalyze.take(50) + "..." else textToAnalyze
+                                  VigiaDatabase.getDatabase(context).historyDao().insertHistory(
+                                      AnalysisHistory(type = "VERIFY (Manuel)", contentSummary = summary, riskScore = result!!.score, riskLevel = result!!.level.label)
+                                  )
+                              }
+                          }
+                      },
+                      modifier = Modifier.fillMaxWidth().height(50.dp),
+                      colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF))
+                  ) {
+                      Text("Analyser ce contenu", fontWeight = FontWeight.Bold, color = Color.Black)
+                  }
+                  
+                  Spacer(modifier = Modifier.height(24.dp))
+                  result?.let {
+                      val color = if (it.score >= 60) Color(0xFFEF4444) else if (it.score >= 30) Color(0xFFF59E0B) else Color(0xFF10B981)
+                      Card(colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.2f)), border = BorderStroke(1.dp, color)) {
+                          Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                              Text("Résultat: ${it.level.label} (${it.score}/100)", fontWeight = FontWeight.Bold, color = color, fontSize = 20.sp)
+                              Spacer(modifier = Modifier.height(8.dp))
+                              Text(it.recommendation, color = Color.White)
+                              if (it.signals.isNotEmpty()) {
+                                  Spacer(modifier = Modifier.height(8.dp))
+                                  Text("Signaux détectés :", fontWeight = FontWeight.Bold, color = Color(0xFF94A3B8))
+                                  it.signals.forEach { signal -> Text("• $signal", color = Color(0xFFCBD5E1)) }
+                              }
                           }
                       }
                   }
@@ -230,43 +463,73 @@ jobs:
           }
           
           @Composable
-          fun VigiaHomeScreen() {
+          fun VigiaHistoryScreen() {
+              val context = LocalContext.current
+              val database = remember { VigiaDatabase.getDatabase(context) }
+              val historyList by database.historyDao().getAllHistory().collectAsState(initial = emptyList())
+              
+              Column(modifier = Modifier.fillMaxSize().background(Color(0xFF0B0F19)).padding(24.dp)) {
+                  Text("Historique des analyses", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                  Spacer(modifier = Modifier.height(16.dp))
+                  if (historyList.isEmpty()) {
+                      Text("Aucune donnée enregistrée.", color = Color.Gray)
+                  } else {
+                      LazyColumn {
+                          items(historyList) { item ->
+                              Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B))) {
+                                  Column(modifier = Modifier.padding(16.dp)) {
+                                      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                          Text(item.type, fontWeight = FontWeight.Bold, color = Color(0xFF00E5FF))
+                                          Text("${item.riskLevel} (${item.riskScore})", fontWeight = FontWeight.Bold, color = if(item.riskScore >= 60) Color.Red else Color.White)
+                                      }
+                                      Spacer(modifier = Modifier.height(4.dp))
+                                      Text(item.contentSummary, color = Color(0xFF94A3B8), fontSize = 14.sp)
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+          
+          @Composable
+          fun VigiaDashboardScreen() {
               val context = LocalContext.current
               val lifecycleOwner = LocalLifecycleOwner.current
               var isGuardActive by remember { mutableStateOf(PermissionChecker.isNotificationListenerEnabled(context)) }
-          
+              val guardCardColor by animateColorAsState(if (isGuardActive) Color(0xFF064E3B).copy(alpha = 0.3f) else Color(0xFF78350F).copy(alpha = 0.3f))
+              val guardBorderColor by animateColorAsState(if (isGuardActive) Color(0xFF10B981) else Color(0xFFF59E0B))
               DisposableEffect(lifecycleOwner) {
                   val observer = LifecycleEventObserver { _, event ->
-                      if (event == Lifecycle.Event.ON_RESUME) {
-                          isGuardActive = PermissionChecker.isNotificationListenerEnabled(context)
-                      }
+                      if (event == Lifecycle.Event.ON_RESUME) { isGuardActive = PermissionChecker.isNotificationListenerEnabled(context) }
                   }
                   lifecycleOwner.lifecycle.addObserver(observer)
                   onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
               }
-          
-              Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-                  Spacer(modifier = Modifier.height(32.dp))
-                  Text("VIGIA AI", fontSize = 32.sp, fontWeight = FontWeight.Bold)
-                  Spacer(modifier = Modifier.height(8.dp))
-                  Text("La sécurité qui intervient\navant l'erreur.", fontSize = 18.sp, color = Color.LightGray)
-                  Spacer(modifier = Modifier.height(48.dp))
-                  Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-                      Column(modifier = Modifier.padding(20.dp)) {
-                          Text("VIGIA Guard", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                          Text("Protection en temps réel", fontSize = 14.sp, color = Color.LightGray)
-                          Spacer(modifier = Modifier.height(24.dp))
-                          Row(verticalAlignment = Alignment.CenterVertically) {
-                              val statusColor = if (isGuardActive) Color(0xFF4CAF50) else Color(0xFFFF9800)
-                              val statusText = if (isGuardActive) "🟢 ACTIF" else "⚠️ AUTORISATION REQUISE"
-                              Box(modifier = Modifier.size(12.dp).background(statusColor, shape = RoundedCornerShape(50)))
-                              Spacer(modifier = Modifier.width(8.dp))
-                              Text(statusText, fontWeight = FontWeight.Bold, color = statusColor)
+              Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF111827), Color(0xFF0B0F19))))) {
+                  Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 40.dp)) {
+                      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                          Column {
+                              Text("VIGIA AI", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                              Text("La sécurité qui intervient avant l'erreur.", fontSize = 14.sp, color = Color(0xFF94A3B8))
                           }
-                          Spacer(modifier = Modifier.height(16.dp))
-                          if (!isGuardActive) {
-                              Button(onClick = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }, modifier = Modifier.fillMaxWidth()) {
-                                  Text("Activer la protection")
+                      }
+                      Spacer(modifier = Modifier.height(40.dp))
+                      Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.Transparent)) {
+                          Box(modifier = Modifier.fillMaxWidth().background(guardCardColor).border(1.dp, guardBorderColor.copy(alpha=0.5f), RoundedCornerShape(24.dp)).padding(24.dp)) {
+                              Column {
+                                  Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                      Column { Text("VIGIA Guard", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White); Text("Protection temps réel", fontSize = 14.sp, color = Color(0xFFCBD5E1)) }
+                                      Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.background(if (isGuardActive) Color(0xFF065F46) else Color(0xFF78350F), CircleShape).padding(horizontal = 12.dp, vertical = 6.dp)) {
+                                          Text(if (isGuardActive) "🟢 ACTIF" else "⚠️ INACTIF", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = guardBorderColor)
+                                      }
+                                  }
+                                  Spacer(modifier = Modifier.height(24.dp))
+                                  if (!isGuardActive) {
+                                      Button(onClick = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }, modifier = Modifier.fillMaxWidth().height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))) {
+                                          Text("AUTORISER LA PROTECTION", fontWeight = FontWeight.Bold, color = Color.White)
+                                      }
+                                  } else { Text("Le moteur de risque local analyse actuellement les interactions suspectes.", fontSize = 13.sp, color = Color(0xFF10B981)) }
                               }
                           }
                       }
@@ -275,12 +538,12 @@ jobs:
           }
           EOF
 
-      - name: Compilation de l'APK (avec traces)
+      - name: Compilation du MEGA SPRINT
         run: |
           cd vigia-app
-          gradle assembleDebug --stacktrace
+          gradle assembleDebug --stacktrace --info
 
-      - name: Livraison de l'APK
+      - name: Livraison de l'APK (MEGA-SPRINT)
         uses: actions/upload-artifact@v4
         with:
           name: VIGIA-AI-APK

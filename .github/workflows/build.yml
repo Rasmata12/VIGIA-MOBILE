@@ -188,7 +188,7 @@ jobs:
           }
           EOF
           
-          # LE CORRECTIF EST ICI (les imports exacts)
+          # LE CORRECTIF EXACT EST ICI (LocalLifecycleOwner au bon endroit)
           cat << 'EOF' > app/src/main/java/com/vigia/ai/MainActivity.kt
           package com.vigia.ai
           
@@ -208,7 +208,7 @@ jobs:
           import androidx.compose.ui.Modifier
           import androidx.compose.ui.graphics.Color
           import androidx.compose.ui.platform.LocalContext
-          import androidx.lifecycle.compose.LocalLifecycleOwner
+          import androidx.compose.ui.platform.LocalLifecycleOwner
           import androidx.compose.ui.text.font.FontWeight
           import androidx.compose.ui.unit.dp
           import androidx.compose.ui.unit.sp

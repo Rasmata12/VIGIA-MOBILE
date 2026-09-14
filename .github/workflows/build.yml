@@ -17,9 +17,6 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Configuration de Gradle
-        uses: gradle/actions/setup-gradle@v3
-
       - name: Génération de l'Architecture Native Android VIGIA
         run: |
           mkdir -p vigia-app/app/src/main/java/com/vigia/ai/services
@@ -28,10 +25,29 @@ jobs:
           mkdir -p vigia-app/app/src/main/res/values
           cd vigia-app
           
+          # Propriétés de base obligatoires pour AndroidX
+          cat << 'EOF' > gradle.properties
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          EOF
+          
           # Paramètres du projet Gradle
           cat << 'EOF' > settings.gradle.kts
-          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
-          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          pluginManagement { 
+              repositories { 
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal() 
+              } 
+          }
+          dependencyResolutionManagement { 
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories { 
+                  google()
+                  mavenCentral() 
+              } 
+          }
           rootProject.name = "VIGIA AI"
           include(":app")
           EOF
@@ -45,12 +61,24 @@ jobs:
           
           # Configuration du module App
           cat << 'EOF' > app/build.gradle.kts
-          plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
+          plugins { 
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android") 
+          }
           android {
               namespace = "com.vigia.ai"
               compileSdk = 34
-              defaultConfig { applicationId = "com.vigia.ai"; minSdk = 26; targetSdk = 34; versionCode = 1; versionName = "1.0.0" }
-              compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+              defaultConfig { 
+                  applicationId = "com.vigia.ai"
+                  minSdk = 26
+                  targetSdk = 34
+                  versionCode = 1
+                  versionName = "1.0.0" 
+              }
+              compileOptions { 
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17 
+              }
               kotlinOptions { jvmTarget = "17" }
               buildFeatures { compose = true }
               composeOptions { kotlinCompilerExtensionVersion = "1.5.2" }
@@ -61,6 +89,8 @@ jobs:
               implementation("androidx.activity:activity-compose:1.8.0")
               implementation(platform("androidx.compose:compose-bom:2023.10.01"))
               implementation("androidx.compose.ui:ui")
+              implementation("androidx.compose.ui:ui-graphics")
+              implementation("androidx.compose.ui:ui-tooling-preview")
               implementation("androidx.compose.material3:material3")
           }
           EOF
@@ -72,20 +102,30 @@ jobs:
           </resources>
           EOF
           
-          # Le Vrai Manifeste avec les vraies permissions
+          # Le Vrai Manifeste
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.vigia.ai">
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-              <application android:label="@string/app_name" android:allowBackup="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
-                  <activity android:name=".MainActivity" android:exported="true">
+              
+              <application 
+                  android:label="@string/app_name" 
+                  android:allowBackup="false" 
+                  android:theme="@android:style/Theme.Material.Light.NoActionBar">
+                  <activity 
+                      android:name=".MainActivity" 
+                      android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
                   </activity>
-                  <service android:name=".services.VigiaNotificationListenerService" android:label="VIGIA Guard" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true">
+                  <service 
+                      android:name=".services.VigiaNotificationListenerService" 
+                      android:label="VIGIA Guard" 
+                      android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" 
+                      android:exported="true">
                       <intent-filter>
                           <action android:name="android.service.notification.NotificationListenerService" />
                       </intent-filter>
@@ -94,16 +134,18 @@ jobs:
           </manifest>
           EOF
           
-          # Le Vrai Moteur de Risque Local (Priorité 4)
-          cat << 'EOF' > app/src/main/java/com/vigia/ai/domain/RiskEngine.kt
+          # Le Vrai Moteur de Risque Local
+          cat << 'EOF' > app/src/main/java/com/vigia/ai/domain/LocalRiskEngine.kt
           package com.vigia.ai.domain
+          
           import java.util.Locale
+          
           enum class RiskLevel(val label: String) { FAIBLE("FAIBLE"), MODERE("MODÉRÉ"), ELEVE("ÉLEVÉ"), CRITIQUE("CRITIQUE") }
           data class RiskResult(val score: Int, val level: RiskLevel, val signals: List<String>, val recommendation: String)
           
           object LocalRiskEngine {
               private val URGENCY_REGEX = Regex("(?i)\\b(urgent|immédiatement|suspendu|bloqué|alerte)\\b")
-              private val FINANCIAL_REGEX = Regex("(?i)\\b(fcfa|payer|paiement|virement|mobile money|orange money|moov|mtn)\\b")
+              private val FINANCIAL_REGEX = Regex("(?i)\\b(fcfa|payer|paiement|virement|mobile|orange|moov|mtn)\\b")
               private val CREDENTIAL_REGEX = Regex("(?i)\\b(mot de passe|code|otp|pin|identifiant)\\b")
               private val LINK_REGEX = Regex("(?i)(http://|https://|www\\.)")
           
@@ -122,7 +164,7 @@ jobs:
                       finalScore < 80 -> RiskLevel.ELEVE
                       else -> RiskLevel.CRITIQUE
                   }
-                  val rec = if(level == RiskLevel.CRITIQUE || level == RiskLevel.ELEVE) "Ne fournissez aucune information. Risque élevé de fraude." else "Restez vigilant."
+                  val rec = if(level == RiskLevel.CRITIQUE || level == RiskLevel.ELEVE) "Ne fournissez aucune information. Risque élevé." else "Restez vigilant."
                   return RiskResult(finalScore, level, detectedSignals, rec)
               }
           }
@@ -131,10 +173,12 @@ jobs:
           # Le vérificateur des vraies permissions Android
           cat << 'EOF' > app/src/main/java/com/vigia/ai/core/PermissionChecker.kt
           package com.vigia.ai.core
+          
           import android.content.ComponentName
           import android.content.Context
           import android.provider.Settings
           import com.vigia.ai.services.VigiaNotificationListenerService
+          
           object PermissionChecker {
               fun isNotificationListenerEnabled(context: Context): Boolean {
                   val componentName = ComponentName(context, VigiaNotificationListenerService::class.java)
@@ -147,6 +191,7 @@ jobs:
           # Le service réel d'interception (VIGIA Guard)
           cat << 'EOF' > app/src/main/java/com/vigia/ai/services/VigiaNotificationListenerService.kt
           package com.vigia.ai.services
+          
           import android.app.NotificationChannel
           import android.app.NotificationManager
           import android.content.Context
@@ -168,7 +213,6 @@ jobs:
                   val fullContent = "$title $text"
                   if (fullContent.isNotBlank()) {
                       val riskResult = LocalRiskEngine.analyzeText(fullContent)
-                      // Alerte uniquement si le risque est ÉLEVÉ ou CRITIQUE
                       if (riskResult.level == RiskLevel.ELEVE || riskResult.level == RiskLevel.CRITIQUE) {
                           triggerVigiaAlert(riskResult)
                       }
@@ -199,6 +243,7 @@ jobs:
           # L'interface utilisateur native Android (Jetpack Compose)
           cat << 'EOF' > app/src/main/java/com/vigia/ai/MainActivity.kt
           package com.vigia.ai
+          
           import android.content.Intent
           import android.os.Bundle
           import android.provider.Settings
@@ -213,12 +258,12 @@ jobs:
           import androidx.compose.ui.Modifier
           import androidx.compose.ui.graphics.Color
           import androidx.compose.ui.platform.LocalContext
+          import androidx.compose.ui.platform.LocalLifecycleOwner
           import androidx.compose.ui.text.font.FontWeight
           import androidx.compose.ui.unit.dp
           import androidx.compose.ui.unit.sp
           import androidx.lifecycle.Lifecycle
           import androidx.lifecycle.LifecycleEventObserver
-          import androidx.lifecycle.compose.LocalLifecycleOwner
           import com.vigia.ai.core.PermissionChecker
           
           class MainActivity : ComponentActivity() {
@@ -242,7 +287,9 @@ jobs:
           
               DisposableEffect(lifecycleOwner) {
                   val observer = LifecycleEventObserver { _, event ->
-                      if (event == Lifecycle.Event.ON_RESUME) isGuardActive = PermissionChecker.isNotificationListenerEnabled(context)
+                      if (event == Lifecycle.Event.ON_RESUME) {
+                          isGuardActive = PermissionChecker.isNotificationListenerEnabled(context)
+                      }
                   }
                   lifecycleOwner.lifecycle.addObserver(observer)
                   onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -278,12 +325,17 @@ jobs:
           }
           EOF
 
-      - name: Compilation Native Android (Gradle assembleDebug)
+      - name: Génération du Wrapper Gradle 8.4
         run: |
           cd vigia-app
-          gradle assembleDebug --no-daemon
+          gradle wrapper --gradle-version 8.4
 
-      - name: Livraison du fichier APK Fonctionnel
+      - name: Compilation de l'APK via Gradle Wrapper
+        run: |
+          cd vigia-app
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Livraison de l'APK (Succès)
         uses: actions/upload-artifact@v4
         with:
           name: VIGIA-AI-APK

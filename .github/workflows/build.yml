@@ -1,0 +1,290 @@
+name: Compiler VIGIA AI APK
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configuration de Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Configuration de Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Génération de l'Architecture Native Android VIGIA
+        run: |
+          mkdir -p vigia-app/app/src/main/java/com/vigia/ai/services
+          mkdir -p vigia-app/app/src/main/java/com/vigia/ai/core
+          mkdir -p vigia-app/app/src/main/java/com/vigia/ai/domain
+          mkdir -p vigia-app/app/src/main/res/values
+          cd vigia-app
+          
+          # Paramètres du projet Gradle
+          cat << 'EOF' > settings.gradle.kts
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          rootProject.name = "VIGIA AI"
+          include(":app")
+          EOF
+          
+          cat << 'EOF' > build.gradle.kts
+          plugins {
+              id("com.android.application") version "8.1.1" apply false
+              id("org.jetbrains.kotlin.android") version "1.9.0" apply false
+          }
+          EOF
+          
+          # Configuration du module App
+          cat << 'EOF' > app/build.gradle.kts
+          plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
+          android {
+              namespace = "com.vigia.ai"
+              compileSdk = 34
+              defaultConfig { applicationId = "com.vigia.ai"; minSdk = 26; targetSdk = 34; versionCode = 1; versionName = "1.0.0" }
+              compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+              kotlinOptions { jvmTarget = "17" }
+              buildFeatures { compose = true }
+              composeOptions { kotlinCompilerExtensionVersion = "1.5.2" }
+          }
+          dependencies {
+              implementation("androidx.core:core-ktx:1.12.0")
+              implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+              implementation("androidx.activity:activity-compose:1.8.0")
+              implementation(platform("androidx.compose:compose-bom:2023.10.01"))
+              implementation("androidx.compose.ui:ui")
+              implementation("androidx.compose.material3:material3")
+          }
+          EOF
+          
+          # Ressources minimales
+          cat << 'EOF' > app/src/main/res/values/strings.xml
+          <resources>
+              <string name="app_name">VIGIA AI</string>
+          </resources>
+          EOF
+          
+          # Le Vrai Manifeste avec les vraies permissions
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.vigia.ai">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <application android:label="@string/app_name" android:allowBackup="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+                  <service android:name=".services.VigiaNotificationListenerService" android:label="VIGIA Guard" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.service.notification.NotificationListenerService" />
+                      </intent-filter>
+                  </service>
+              </application>
+          </manifest>
+          EOF
+          
+          # Le Vrai Moteur de Risque Local (Priorité 4)
+          cat << 'EOF' > app/src/main/java/com/vigia/ai/domain/RiskEngine.kt
+          package com.vigia.ai.domain
+          import java.util.Locale
+          enum class RiskLevel(val label: String) { FAIBLE("FAIBLE"), MODERE("MODÉRÉ"), ELEVE("ÉLEVÉ"), CRITIQUE("CRITIQUE") }
+          data class RiskResult(val score: Int, val level: RiskLevel, val signals: List<String>, val recommendation: String)
+          
+          object LocalRiskEngine {
+              private val URGENCY_REGEX = Regex("(?i)\\b(urgent|immédiatement|suspendu|bloqué|alerte)\\b")
+              private val FINANCIAL_REGEX = Regex("(?i)\\b(fcfa|payer|paiement|virement|mobile money|orange money|moov|mtn)\\b")
+              private val CREDENTIAL_REGEX = Regex("(?i)\\b(mot de passe|code|otp|pin|identifiant)\\b")
+              private val LINK_REGEX = Regex("(?i)(http://|https://|www\\.)")
+          
+              fun analyzeText(text: String): RiskResult {
+                  var currentScore = 0
+                  val detectedSignals = mutableListOf<String>()
+                  val lowerText = text.lowercase(Locale.getDefault())
+                  if (URGENCY_REGEX.containsMatchIn(lowerText)) { currentScore += 25; detectedSignals.add("Urgence artificielle") }
+                  if (FINANCIAL_REGEX.containsMatchIn(lowerText)) { currentScore += 25; detectedSignals.add("Demande financière") }
+                  if (CREDENTIAL_REGEX.containsMatchIn(lowerText)) { currentScore += 35; detectedSignals.add("Demande sensible (OTP/PIN)") }
+                  if (LINK_REGEX.containsMatchIn(lowerText)) { currentScore += 15; detectedSignals.add("Lien suspect détecté") }
+                  val finalScore = currentScore.coerceAtMost(100)
+                  val level = when {
+                      finalScore < 30 -> RiskLevel.FAIBLE
+                      finalScore < 60 -> RiskLevel.MODERE
+                      finalScore < 80 -> RiskLevel.ELEVE
+                      else -> RiskLevel.CRITIQUE
+                  }
+                  val rec = if(level == RiskLevel.CRITIQUE || level == RiskLevel.ELEVE) "Ne fournissez aucune information. Risque élevé de fraude." else "Restez vigilant."
+                  return RiskResult(finalScore, level, detectedSignals, rec)
+              }
+          }
+          EOF
+          
+          # Le vérificateur des vraies permissions Android
+          cat << 'EOF' > app/src/main/java/com/vigia/ai/core/PermissionChecker.kt
+          package com.vigia.ai.core
+          import android.content.ComponentName
+          import android.content.Context
+          import android.provider.Settings
+          import com.vigia.ai.services.VigiaNotificationListenerService
+          object PermissionChecker {
+              fun isNotificationListenerEnabled(context: Context): Boolean {
+                  val componentName = ComponentName(context, VigiaNotificationListenerService::class.java)
+                  val enabledListeners = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                  return enabledListeners?.contains(componentName.flattenToString()) == true
+              }
+          }
+          EOF
+          
+          # Le service réel d'interception (VIGIA Guard)
+          cat << 'EOF' > app/src/main/java/com/vigia/ai/services/VigiaNotificationListenerService.kt
+          package com.vigia.ai.services
+          import android.app.NotificationChannel
+          import android.app.NotificationManager
+          import android.content.Context
+          import android.graphics.Color
+          import android.os.Build
+          import android.service.notification.NotificationListenerService
+          import android.service.notification.StatusBarNotification
+          import androidx.core.app.NotificationCompat
+          import com.vigia.ai.domain.LocalRiskEngine
+          import com.vigia.ai.domain.RiskLevel
+          import com.vigia.ai.domain.RiskResult
+          
+          class VigiaNotificationListenerService : NotificationListenerService() {
+              override fun onNotificationPosted(sbn: StatusBarNotification?) {
+                  if (sbn == null || sbn.packageName == applicationContext.packageName) return
+                  val extras = sbn.notification.extras
+                  val title = extras.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString() ?: ""
+                  val text = extras.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString() ?: ""
+                  val fullContent = "$title $text"
+                  if (fullContent.isNotBlank()) {
+                      val riskResult = LocalRiskEngine.analyzeText(fullContent)
+                      // Alerte uniquement si le risque est ÉLEVÉ ou CRITIQUE
+                      if (riskResult.level == RiskLevel.ELEVE || riskResult.level == RiskLevel.CRITIQUE) {
+                          triggerVigiaAlert(riskResult)
+                      }
+                  }
+              }
+              private fun triggerVigiaAlert(result: RiskResult) {
+                  val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                  val channelId = "vigia_alerts_channel"
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                      val channel = NotificationChannel(channelId, "VIGIA Alertes", NotificationManager.IMPORTANCE_HIGH)
+                      channel.lightColor = Color.RED
+                      notificationManager.createNotificationChannel(channel)
+                  }
+                  val signalsText = result.signals.joinToString("\n• ", prefix = "• ")
+                  val notification = NotificationCompat.Builder(this, channelId)
+                      .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                      .setContentTitle("🛡️ VIGIA : RISQUE ${result.level.label}")
+                      .setContentText("Prenez une seconde pour vérifier.")
+                      .setStyle(NotificationCompat.BigTextStyle().bigText("Score: ${result.score}/100\n\nSignaux :\n$signalsText\n\n${result.recommendation}"))
+                      .setPriority(NotificationCompat.PRIORITY_HIGH)
+                      .setAutoCancel(true)
+                      .build()
+                  notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+              }
+          }
+          EOF
+          
+          # L'interface utilisateur native Android (Jetpack Compose)
+          cat << 'EOF' > app/src/main/java/com/vigia/ai/MainActivity.kt
+          package com.vigia.ai
+          import android.content.Intent
+          import android.os.Bundle
+          import android.provider.Settings
+          import androidx.activity.ComponentActivity
+          import androidx.activity.compose.setContent
+          import androidx.compose.foundation.background
+          import androidx.compose.foundation.layout.*
+          import androidx.compose.foundation.shape.RoundedCornerShape
+          import androidx.compose.material3.*
+          import androidx.compose.runtime.*
+          import androidx.compose.ui.Alignment
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.graphics.Color
+          import androidx.compose.ui.platform.LocalContext
+          import androidx.compose.ui.text.font.FontWeight
+          import androidx.compose.ui.unit.dp
+          import androidx.compose.ui.unit.sp
+          import androidx.lifecycle.Lifecycle
+          import androidx.lifecycle.LifecycleEventObserver
+          import androidx.lifecycle.compose.LocalLifecycleOwner
+          import com.vigia.ai.core.PermissionChecker
+          
+          class MainActivity : ComponentActivity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContent {
+                      MaterialTheme(colorScheme = darkColorScheme()) {
+                          Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                              VigiaHomeScreen()
+                          }
+                      }
+                  }
+              }
+          }
+          
+          @Composable
+          fun VigiaHomeScreen() {
+              val context = LocalContext.current
+              val lifecycleOwner = LocalLifecycleOwner.current
+              var isGuardActive by remember { mutableStateOf(PermissionChecker.isNotificationListenerEnabled(context)) }
+          
+              DisposableEffect(lifecycleOwner) {
+                  val observer = LifecycleEventObserver { _, event ->
+                      if (event == Lifecycle.Event.ON_RESUME) isGuardActive = PermissionChecker.isNotificationListenerEnabled(context)
+                  }
+                  lifecycleOwner.lifecycle.addObserver(observer)
+                  onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+              }
+          
+              Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+                  Spacer(modifier = Modifier.height(32.dp))
+                  Text("VIGIA AI", fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                  Spacer(modifier = Modifier.height(8.dp))
+                  Text("La sécurité qui intervient\navant l'erreur.", fontSize = 18.sp, color = Color.LightGray)
+                  Spacer(modifier = Modifier.height(48.dp))
+                  Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                      Column(modifier = Modifier.padding(20.dp)) {
+                          Text("VIGIA Guard", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                          Text("Protection en temps réel", fontSize = 14.sp, color = Color.LightGray)
+                          Spacer(modifier = Modifier.height(24.dp))
+                          Row(verticalAlignment = Alignment.CenterVertically) {
+                              val statusColor = if (isGuardActive) Color(0xFF4CAF50) else Color(0xFFFF9800)
+                              val statusText = if (isGuardActive) "🟢 ACTIF" else "⚠️ AUTORISATION REQUISE"
+                              Box(modifier = Modifier.size(12.dp).background(statusColor, shape = RoundedCornerShape(50)))
+                              Spacer(modifier = Modifier.width(8.dp))
+                              Text(statusText, fontWeight = FontWeight.Bold, color = statusColor)
+                          }
+                          Spacer(modifier = Modifier.height(16.dp))
+                          if (!isGuardActive) {
+                              Button(onClick = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }, modifier = Modifier.fillMaxWidth()) {
+                                  Text("Activer la protection")
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+          EOF
+
+      - name: Compilation Native Android (Gradle assembleDebug)
+        run: |
+          cd vigia-app
+          gradle assembleDebug --no-daemon
+
+      - name: Livraison du fichier APK Fonctionnel
+        uses: actions/upload-artifact@v4
+        with:
+          name: VIGIA-AI-APK
+          path: vigia-app/app/build/outputs/apk/debug/app-debug.apk

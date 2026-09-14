@@ -30,12 +30,25 @@ jobs:
 
       - name: Compilation de l'APK VIGIA AI (assembleDebug)
         run: |
-          cd vigia-app
+          echo "=== Recherche du dossier Android ==="
+          if [ -d "vigia-android-source/vigia-app" ]; then
+            echo "Trouve dans vigia-android-source/vigia-app"
+            cd vigia-android-source/vigia-app
+          elif [ -d "vigia-app" ]; then
+            echo "Trouve dans vigia-app"
+            cd vigia-app
+          elif [ -d "vigia-android-source" ]; then
+            cd vigia-android-source
+          fi
+          
+          pwd
+          ls -la
+          
           gradle assembleDebug --stacktrace --no-daemon
 
       - name: Mettre a disposition l'APK telechargeable
         uses: actions/upload-artifact@v4
         with:
           name: VIGIA-AI-APK
-          path: vigia-app/app/build/outputs/apk/debug/app-debug.apk
+          path: "**/app/build/outputs/apk/debug/app-debug.apk"
           if-no-files-found: error

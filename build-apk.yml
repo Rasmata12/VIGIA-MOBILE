@@ -30,22 +30,16 @@ jobs:
 
       - name: Compilation de l'APK VIGIA AI (assembleDebug)
         run: |
-          echo "=== Arborescence détectée ==="
-          pwd
+          echo "=== Verification des dossiers ==="
           ls -la
+          
           if [ -d "vigia-app" ]; then
-            echo "-> Dossier vigia-app/ détecté"
+            echo "Dossier vigia-app trouve"
             cd vigia-app
-          elif [ -f "build.gradle.kts" ] && [ -d "app" ]; then
-            echo "-> Projet Android détecté directement à la racine"
-          else
-            FOUND_DIR=$(find . -maxdepth 3 -name "build.gradle.kts" -not -path "*/app/*" | head -n 1)
-            if [ -n "$FOUND_DIR" ]; then
-              TARGET_DIR=$(dirname "$FOUND_DIR")
-              echo "-> Projet Android trouvé dans: $TARGET_DIR"
-              cd "$TARGET_DIR"
-            fi
+          elif [ -f "build.gradle.kts" ]; then
+            echo "Fichiers Android trouves a la racine"
           fi
+          
           if [ -f "./gradlew" ]; then
             chmod +x ./gradlew
             ./gradlew assembleDebug --stacktrace --no-daemon

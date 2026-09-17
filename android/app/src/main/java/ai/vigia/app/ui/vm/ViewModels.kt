@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import ai.vigia.app.ServiceLocator
 import ai.vigia.app.local.AnalysisEntity
 import ai.vigia.app.net.ApiFactory
+import ai.vigia.app.net.SessionDto
+import ai.vigia.app.net.SettingsPatch
 import ai.vigia.app.net.SignalDto
 import ai.vigia.app.net.SourceDto
 import ai.vigia.app.net.StatsResponse
@@ -262,7 +264,7 @@ class SettingsViewModel : ViewModel() {
 
     private fun patch(notifications: Boolean? = null, ai: Boolean? = null) {
         viewModelScope.launch {
-            runCatching { api.updateSettings(ai.vigia.app.net.SettingsPatch(notifications, ai)) }
+            runCatching { api.updateSettings(SettingsPatch(notifications, ai)) }
                 .onSuccess { _state.value = _state.value.copy(notifications = it.notificationsEnabled, aiEnabled = it.aiEnabled) }
                 .onFailure { _state.value = _state.value.copy(message = "Modification impossible : serveur injoignable.") }
         }

@@ -21,8 +21,7 @@ import ai.vigia.app.ui.theme.*
 import ai.vigia.app.ui.vm.HistoryViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-@OptIn(ExperimentalMaterial3Api::class)
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun HistoryScreen(viewModel: HistoryViewModel) {
     val items by viewModel.items.collectAsStateWithLifecycle()

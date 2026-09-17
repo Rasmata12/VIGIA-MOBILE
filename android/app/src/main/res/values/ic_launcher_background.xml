@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Fond de l'icone adaptative : blanc, pour que le degrade bleu du logo VIGIA ressorte -->
-    <color name="ic_launcher_background">#FFFFFFFF</color>
-</resources>

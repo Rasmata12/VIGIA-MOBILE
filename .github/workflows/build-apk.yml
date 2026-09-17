@@ -37,11 +37,13 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # Pas besoin du wrapper gradlew : cette action installe et met en cache Gradle
+      # directement, meme si gradlew n'a jamais ete genere dans le depot.
       - name: Preparer Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Construire l'APK (debug, installable directement)
-        working-directory: android/android
+        working-directory: android
         run: >
           gradle assembleDebug
           -PVIGIA_API_BASE_URL=${{ github.event.inputs.api_base_url || 'https://vigia-backend.onrender.com/' }}
@@ -50,5 +52,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vigia-ai-debug-apk
-          path: android/android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

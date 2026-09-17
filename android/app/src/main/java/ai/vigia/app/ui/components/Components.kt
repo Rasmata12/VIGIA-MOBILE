@@ -662,7 +662,7 @@ fun ScamDnaCard(
 fun CyberRadarView(
     active: Boolean,
     modifier: Modifier = Modifier,
-    size: Dp = 130.dp
+    radarSize: Dp = 130.dp
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "radar")
     val sweepAngle by infiniteTransition.animateFloat(
@@ -675,9 +675,9 @@ fun CyberRadarView(
         label = "radarSweep"
     )
 
-    Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
+    Box(modifier = modifier.size(radarSize), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val radius = size.width.toPx() / 2
+            val radius = size.width / 2
 
             // Cercles concentriques clairs
             drawCircle(color = Color(0xFFDBEAFE), radius = radius * 0.35f, style = Stroke(1.dp.toPx()))

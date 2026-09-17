@@ -1,0 +1,6 @@
+-keepattributes Signature, *Annotation*
+-keep,includedescriptorclasses class ai.vigia.app.net.**$$serializer { *; }
+-keepclassmembers class ai.vigia.app.net.** { *** Companion; }
+-keepclasseswithmembers class ai.vigia.app.net.** { kotlinx.serialization.KSerializer serializer(...); }
+-dontwarn okhttp3.**
+-dontwarn okio.**

@@ -85,7 +85,7 @@ fun GuardScreen(
             ) {
                 CyberRadarView(
                     active = state.localEnabled && state.listenerEnabled,
-                    size = 140.dp
+                    radarSize = 140.dp
                 )
 
                 Spacer(Modifier.height(16.dp))

@@ -116,7 +116,7 @@ class AnalysisRepository(
             if (cached.signalsJson != "[]" || cached.id.startsWith("local-")) return@withContext Outcome.Success(cached)
         }
         runCatching { api.analysis(id) }.fold(
-            { it.toEntity().also { e -> dao.upsert(e) }.let(Outcome::Success) },
+            { it.toEntity().also { e -> dao.upsert(e) }.let { entity -> Outcome.Success(entity) } },
             { failure -> dao.byId(id)?.let { Outcome.Success(it, offline = true) } ?: toFailure(failure) }
         )
     }

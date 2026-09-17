@@ -28,6 +28,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
  */
 class ShareAnalyzeActivity : ComponentActivity() {
 
+    @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val shared = extractSharedText(intent)
@@ -45,7 +46,7 @@ class ShareAnalyzeActivity : ComponentActivity() {
 
                 ModalBottomSheet(
                     onDismissRequest = { finish() },
-                    containerColor = VigiaNavySoft,
+                    containerColor = VigiaSurface,
                     dragHandle = { BottomSheetDefaults.DragHandle() }
                 ) {
                     Column(

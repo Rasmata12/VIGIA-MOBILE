@@ -1,0 +1,48 @@
+name: Build VIGIA APK
+
+# Se lance automatiquement a chaque push sur main, ou manuellement depuis l'onglet
+# "Actions" de GitHub (bouton "Run workflow") si tu veux pointer vers une autre URL
+# de backend sans toucher au code.
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "android/**"
+      - ".github/workflows/build-apk.yml"
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "URL HTTPS du backend VIGIA (celle donnee par Render), avec le / final"
+        required: true
+        default: "https://vigia-backend.onrender.com/"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Installer le JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Pas besoin du wrapper gradlew : cette action installe et met en cache Gradle
+      # directement, meme si gradlew n'a jamais ete genere dans le depot.
+      - name: Preparer Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Construire l'APK (debug, installable directement)
+        working-directory: android
+        run: >
+          gradle assembleDebug
+          -PVIGIA_API_BASE_URL=${{ github.event.inputs.api_base_url || 'https://vigia-backend.onrender.com/' }}
+
+      - name: Publier l'APK genere
+        uses: actions/upload-artifact@v4
+        with:
+          name: vigia-ai-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

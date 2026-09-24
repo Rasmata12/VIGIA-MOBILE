@@ -184,7 +184,21 @@ async def analyse_media(frames: list[tuple[bytes, str]], media_type: str, filena
         encoded = base64.b64encode(data).decode("ascii")
         content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{encoded}"}})
 
-    raw = await _call_hf_chat([{"role": "user", "content": content}], api_token, _settings.hf_vision_model)
+    try:
+        raw = await _call_hf_chat([{"role": "user", "content": content}], api_token, _settings.hf_vision_model)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code in {401, 403}:
+            raise RuntimeError(
+                "Le jeton Hugging Face doit autoriser les appels Inference Providers "
+                "(permission « Make calls to Inference Providers »)."
+            ) from exc
+        if exc.response.status_code == 402:
+            raise RuntimeError("Le compte Hugging Face n'a plus de crédit Inference Providers disponible.") from exc
+        raise RuntimeError(
+            f"Le fournisseur vision Hugging Face a répondu HTTP {exc.response.status_code}."
+        ) from exc
+    except httpx.TimeoutException as exc:
+        raise RuntimeError("L'analyse visuelle a expiré côté Hugging Face. Réessayez dans quelques instants.") from exc
     cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     parsed = json.loads(cleaned)
 

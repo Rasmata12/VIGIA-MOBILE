@@ -50,6 +50,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
+import org.json.JSONObject
+import retrofit2.HttpException
 
 @Composable
 fun AnalyzeScreen(
@@ -648,7 +650,12 @@ private fun MediaAnalyzePanel() {
                         scope.launch {
                             runCatching { uploadMediaForAnalysis(context, selectedUri!!, selectedType) }
                                 .onSuccess { result = it }
-                                .onFailure { error = it.message ?: "Analyse visuelle impossible." }
+                                .onFailure { failure ->
+                                    val detail = (failure as? HttpException)?.response()?.errorBody()?.string()?.let { body ->
+                                        runCatching { JSONObject(body).optString("detail").takeIf(String::isNotBlank) }.getOrNull()
+                                    }
+                                    error = detail ?: failure.message ?: "Analyse visuelle impossible."
+                                }
                             loading = false
                         }
                     },

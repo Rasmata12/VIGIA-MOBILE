@@ -306,7 +306,10 @@ fun VigiaApp(onLoggedOut: () -> Unit) {
         NavHost(
             navController = navController,
             startDestination = "dashboard",
-            modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
+            modifier = Modifier.padding(
+                top = padding.calculateTopPadding(),
+                bottom = padding.calculateBottomPadding()
+            ),
             enterTransition = { navEnter },
             exitTransition = { navExit },
             popEnterTransition = { navPopEnter },

@@ -30,7 +30,7 @@ import ai.vigia.app.ui.components.GlowOrb
 import ai.vigia.app.ui.theme.*
 import kotlinx.coroutines.delay
 
-private const val SPLASH_MS = 1600
+private const val SPLASH_MS = 2600
 
 /** Écran de lancement ultra-premium : fond blanc pur et lumineux,
  * logo épuré sans fond noir, ondes cyber concentriques animées et signature VIGIA AI. */

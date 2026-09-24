@@ -24,12 +24,11 @@ Ce paquet réunit :
 
 ## L'app ne parle qu'à CE backend
 
-- `android/gradle.properties` → `VIGIA_API_BASE_URL=http://10.0.2.2:8000/` (10.0.2.2 = ta
-  machine hôte vue depuis l'émulateur Android, où tourne `backend/run.sh` sur le port 8000).
+- `android/gradle.properties` → `VIGIA_API_BASE_URL=https://vigia-mobile.onrender.com/` (API
+  HTTPS du backend déployé; `/health` répond actuellement `status: ok`).
 - `android/app/src/main/res/xml/network_security_config.xml` interdit tout trafic non chiffré
-  **sauf** vers `10.0.2.2` / `localhost` (dev local). En production, remplace
-  `VIGIA_API_BASE_URL` par l'URL HTTPS de ton serveur déployé — aucune autre adresse n'est
-  autorisée par le code.
+  **sauf** vers `10.0.2.2` / `localhost` pour le développement local. L'application de
+  production utilise le backend HTTPS ci-dessus; aucune autre adresse n'est autorisée par le code.
 - Aucun autre client HTTP, aucune autre base URL, aucun SDK tiers d'analyse n'est présent dans
   le code : tout passe par `ApiService` / `HttpClient.kt` vers cette unique API.
 

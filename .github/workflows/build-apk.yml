@@ -14,7 +14,7 @@ on:
       api_base_url:
         description: "URL HTTPS du backend VIGIA (celle donnee par Render), avec le / final"
         required: true
-        default: "https://vigia-backend.onrender.com/"
+        default: "https://vigia-mobile.onrender.com/"
 
 jobs:
   build:
@@ -46,7 +46,7 @@ jobs:
         working-directory: android
         run: >
           gradle assembleDebug
-          -PVIGIA_API_BASE_URL=${{ github.event.inputs.api_base_url || 'https://vigia-backend.onrender.com/' }}
+          -PVIGIA_API_BASE_URL=${{ github.event.inputs.api_base_url || 'https://vigia-mobile.onrender.com/' }}
 
       - name: Publier l'APK genere
         uses: actions/upload-artifact@v4

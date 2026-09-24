@@ -50,6 +50,7 @@ async def run_pipeline(
     use_ai: bool = True,
     package_name: str = "",
     extra_context: str = "",
+    hf_token: str | None = None,
 ) -> tuple[Analysis, RiskAssessment, bool]:
     """Retourne (analyse persistee, evaluation, alerte_creee)."""
     if kind not in VALID_KINDS:
@@ -99,7 +100,7 @@ async def run_pipeline(
     settings_row = user.settings
     ai_allowed = use_ai and online and (settings_row.ai_enabled if settings_row else True)
     if ai_allowed:
-        result = await ai_engine.enrich(kind, payload, result)
+        result = await ai_engine.enrich(kind, payload, result, request_hf_token=hf_token)
 
     # SCAM DNA d'abord (necessaire a la correlation), puis correlation, puis risk engine
     from app.engine.scam_dna import profile

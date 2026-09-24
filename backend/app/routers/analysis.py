@@ -20,7 +20,7 @@ def _to_out(record: Analysis) -> AnalysisOut:
     return AnalysisOut(
         id=record.id, kind=record.kind, input_preview=record.input_preview, score=record.score,
         level=record.level, summary=record.summary, signals=json.loads(record.signals_json or "[]"),
-        sources=json.loads(record.sources_json or "[]"), ai_used=record.ai_used,
+        sources=json.loads(record.sources_json or "[]"), technical=json.loads(record.assessment_json or "{}").get("technical", {}), ai_used=record.ai_used,
         duration_ms=record.duration_ms, created_at=record.created_at,
     )
 
@@ -34,7 +34,7 @@ async def create_analysis(
     rate_limit(db, f"analyse:{user.id}", limit=120, window_seconds=3600)
     record, _assessment, _alert = await run_pipeline(
         db, user, payload.kind, payload.content, module="verify",
-        online=payload.online, use_ai=payload.use_ai,
+        online=payload.online, use_ai=payload.use_ai, hf_token=payload.hf_token,
     )
     return _to_out(record)
 

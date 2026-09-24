@@ -43,6 +43,7 @@ class AnalyseIn(BaseModel):
     content: str = Field(min_length=1, max_length=20000)
     online: bool = True
     use_ai: bool = True
+    hf_token: str | None = Field(default=None, max_length=500)
 
 
 class SignalOut(BaseModel):
@@ -62,6 +63,7 @@ class AnalysisOut(BaseModel):
     summary: str
     signals: list[SignalOut]
     sources: list[dict]
+    technical: dict = {}
     ai_used: bool
     duration_ms: int
     created_at: datetime
@@ -145,6 +147,7 @@ class VerifyIn(BaseModel):
     source: str = Field(default="verify", pattern="^(verify|qr|share|guard|before_pay)$")
     online: bool = True
     use_ai: bool = True
+    hf_token: str | None = Field(default=None, max_length=500)
 
 
 class ScamDnaOut(BaseModel):
@@ -164,6 +167,7 @@ class RiskAssessmentOut(BaseModel):
     scam_dna: list[ScamDnaOut]
     layers: dict
     sources: list[dict]
+    technical: dict = {}
     recommendation: list[str]
     ai_used: bool
     timestamp: str
@@ -187,6 +191,7 @@ class GuardEventIn(BaseModel):
     text: str = Field(max_length=6000)
     posted_at: datetime | None = None
     analyse: bool = True
+    hf_token: str | None = Field(default=None, max_length=500)
 
 
 class GuardStatusIn(BaseModel):
@@ -270,6 +275,19 @@ class CommunityCheckOut(BaseModel):
     reporters: int
     by_category: dict
     risk_from_reports: str   # aucun | a_surveiller | suspect | tres_signale
+
+
+class CommunityTrendingItem(BaseModel):
+    target_type: str
+    target_key: str
+    reporters: int
+    last_reported_at: datetime
+    top_category: str
+
+
+class CommunityTrendingOut(BaseModel):
+    window_days: int
+    items: list[CommunityTrendingItem]
 
 
 class ListingIn(BaseModel):
@@ -386,3 +404,19 @@ class SettingsFullPatch(BaseModel):
     retention_days: int | None = Field(default=None, ge=1, le=365)
     theme: str | None = Field(default=None, pattern="^(system|light|dark)$")
     language: str | None = Field(default=None, pattern="^(fr|en)$")
+
+
+class MediaAnalysisOut(BaseModel):
+    score: int
+    level: str
+    summary: str
+    indicators: list[str] = []
+    recommended_actions: list[str] = []
+    observed_text: str = ""
+    detected_urls: list[str] = []
+    detected_phones: list[str] = []
+    vision_score: int = 0
+    corroborating_score: int = 0
+    model: str
+    frames_analyzed: int
+    media_type: str

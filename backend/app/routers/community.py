@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta, timezone
+from sqlalchemy import func
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.engine import community
-from app.models import Analysis, User
-from app.schemas import CommunityCheckOut, CommunityReportIn, CommunityReportOut
+from app.models import Analysis, CommunityReport, User
+from app.schemas import CommunityCheckOut, CommunityReportIn, CommunityReportOut, CommunityTrendingOut, CommunityTrendingItem
 from app.security import current_user, rate_limit
 
 router = APIRouter(prefix="/community", tags=["community"])
@@ -84,6 +86,7 @@ def check_target(
     db: Session = Depends(get_db),
 ) -> CommunityCheckOut:
     """Verifie si la communaute a deja signale ce lien/domaine ou ce numero, AVANT d'agir."""
+    rate_limit(db, f"community_check:{user.id}", limit=120, window_seconds=3600)
     detected = community.detect_target(target)
     if detected is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Cible non reconnue (ni lien, ni numero).")
@@ -93,3 +96,47 @@ def check_target(
         target_type=target_type, target_key=target_key, reporters=summary["reporters"],
         by_category=summary["by_category"], risk_from_reports=_risk_label(summary["reporters"]),
     )
+
+
+@router.get("/trending", response_model=CommunityTrendingOut)
+def trending(
+    limit: int = 10,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> CommunityTrendingOut:
+    """Expose uniquement des cibles deja signalees, agregees et anonymisees.
+
+    Aucune description, identite ou analyse personnelle n'est renvoyee. Une cible n'apparait
+    qu'apres au moins deux signalants distincts afin de limiter l'effet d'un faux signalement unique.
+    """
+    rate_limit(db, f"community_trending:{user.id}", limit=60, window_seconds=3600)
+    limit = max(1, min(limit, 20))
+    since = datetime.now(timezone.utc) - timedelta(days=30)
+    rows = (
+        db.query(
+            CommunityReport.target_type,
+            CommunityReport.target_key,
+            func.count(func.distinct(CommunityReport.user_id)).label("reporters"),
+            func.max(CommunityReport.created_at).label("last_reported_at"),
+        )
+        .filter(CommunityReport.created_at >= since)
+        .group_by(CommunityReport.target_type, CommunityReport.target_key)
+        .having(func.count(func.distinct(CommunityReport.user_id)) >= 2)
+        .order_by(func.count(func.distinct(CommunityReport.user_id)).desc(), func.max(CommunityReport.created_at).desc())
+        .limit(limit)
+        .all()
+    )
+    items = []
+    for target_type, target_key, reporters, last_reported_at in rows:
+        top = (
+            db.query(CommunityReport.category, func.count(CommunityReport.id).label("n"))
+            .filter(CommunityReport.target_type == target_type, CommunityReport.target_key == target_key, CommunityReport.created_at >= since)
+            .group_by(CommunityReport.category)
+            .order_by(func.count(CommunityReport.id).desc())
+            .first()
+        )
+        items.append(CommunityTrendingItem(
+            target_type=target_type, target_key=target_key, reporters=int(reporters),
+            last_reported_at=last_reported_at, top_category=top[0] if top else "autre",
+        ))
+    return CommunityTrendingOut(window_days=30, items=items)

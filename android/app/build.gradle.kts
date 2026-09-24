@@ -18,7 +18,7 @@ android {
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        val apiBase = (project.findProperty("VIGIA_API_BASE_URL") as String?) ?: "http://10.0.2.2:8000/"
+        val apiBase = (project.findProperty("VIGIA_API_BASE_URL") as String?) ?: "https://vigia-mobile.onrender.com/"
         buildConfigField("String", "API_BASE_URL", "\"$apiBase\"")
     }
 
@@ -61,6 +61,10 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+
+    // Scanner de code-barres/QR gratuit de Google (Play Services) - aucune permission
+    // camera a declarer, l'UI de scan est geree entierement par Google Play Services.
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
 
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")

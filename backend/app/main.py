@@ -15,7 +15,7 @@ from app.engine import ai as ai_engine
 from app.engine.url_engine import ENGINE_VERSION
 from app.routers import (
     account, analysis, auth, before_pay, community, devices, guard, history, job_offer, listing, moment, privacy,
-    shield, stats, verify,
+    shield, stats, verify, media,
 )
 from app.schemas import HealthOut
 
@@ -124,3 +124,4 @@ app.include_router(listing.router)
 app.include_router(shield.router)
 app.include_router(privacy.router)
 app.include_router(devices.router)
+app.include_router(media.router)

@@ -14,6 +14,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -45,158 +47,216 @@ fun SettingsScreen(
             .background(BackgroundGradient)
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
-            .padding(top = 24.dp, bottom = 100.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(top = 20.dp, bottom = 120.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         Column {
-            Text("Paramètres & Sécurité", style = MaterialTheme.typography.headlineMedium, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary)
+            Text(
+                "Paramètres & Sécurité",
+                style = MaterialTheme.typography.headlineMedium,
+                fontFamily = PoppinsFontFamily,
+                fontWeight = FontWeight.ExtraBold,
+                color = VigiaTextPrimary,
+                fontSize = 24.sp
+            )
             Spacer(Modifier.height(4.dp))
-            Text("Configuration des moteurs de protection et gestion du compte.", fontFamily = PoppinsFontFamily, color = VigiaTextSecondary, fontSize = 12.5.sp)
+            Text(
+                "Supervision des moteurs de protection, centres de conformité et gestion du profil.",
+                fontFamily = PoppinsFontFamily,
+                color = VigiaTextSecondary,
+                fontSize = 12.5.sp,
+                lineHeight = 18.sp
+            )
         }
 
-        // Fiche Compte Utilisateur
-        GlassCard(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        // ------------------------------------------------------ Carte compte
+        HeroSurface(orbColors = listOf(VigiaPrimary, VigiaSecondary), cornerRadius = 26.dp) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box(
                     Modifier
-                        .size(44.dp)
+                        .size(52.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFEFF6FF)),
+                        .background(SolidColor(VigiaPrimary)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Person,
-                        contentDescription = null,
-                        tint = VigiaPrimary,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    Icon(imageVector = Icons.Rounded.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
                 }
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Compte Actif", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 14.5.sp)
-                    Spacer(Modifier.height(4.dp))
-                    Text(state.email.ifBlank { "Utilisateur VIGIA" }, fontFamily = PoppinsFontFamily, color = VigiaTextSecondary, fontSize = 12.5.sp)
+                    Text(
+                        "Compte VIGIA Protégé",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = PoppinsFontFamily,
+                        color = VigiaTextPrimary,
+                        fontSize = 14.5.sp
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        state.email.ifBlank { "Utilisateur Souverain" },
+                        fontFamily = PoppinsFontFamily,
+                        color = VigiaTextSecondary,
+                        fontSize = 12.sp
+                    )
                 }
                 InfoChip("Sécurisé", RiskSafe)
             }
         }
 
-        // Hub des centres de sécurité avancés
-        SectionHeader("Centres de Contrôle & Conformité")
-
-        SettingsNavTile(
-            title = "Centre de Confidentialité & RGPD",
-            subtitle = "Transparence des données, audit zéro-stockage, purge",
-            icon = Icons.Rounded.Shield,
-            onClick = onOpenPrivacy
-        )
-
-        SettingsNavTile(
-            title = "Centre des Permissions Android",
-            subtitle = "État des accès Internet, Notifications, Caméra, Guard",
-            icon = Icons.Rounded.VpnKey,
-            onClick = onOpenPermissions
-        )
-
-        SettingsNavTile(
-            title = "Gestion des Appareils",
-            subtitle = "Terminaux autorisés et révocation de session",
-            icon = Icons.Rounded.Smartphone,
-            onClick = onOpenDevices
-        )
-
-        // État des services et moteurs
-        SectionHeader("État des Moteurs de Sécurité")
-        GlassCard(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Serveur d'analyse VIGIA", fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 13.5.sp, modifier = Modifier.weight(1f))
-                InfoChip(
-                    text = when (state.serverReachable) { true -> "En Ligne"; false -> "Injoignable"; null -> "Vérification…" },
-                    color = if (state.serverReachable == true) RiskSafe else RiskDanger
-                )
-            }
+        // ------------------------------------------------------ Centres de controle
+        Column {
+            SectionHeader("Centres de Contrôle & Souveraineté")
             Spacer(Modifier.height(10.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Moteur IA (Claude 3.5 Sonnet)", fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 13.5.sp, modifier = Modifier.weight(1f))
-                InfoChip(
-                    text = when (state.aiConfigured) { true -> "Configuré"; false -> "Non configuré"; null -> "Inconnu" },
-                    color = if (state.aiConfigured == true) VigiaViolet else VigiaTextMuted
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SettingsNavTile(
+                    title = "Centre de Confidentialité & RGPD",
+                    subtitle = "Transparence des données, audit zéro-stockage, purge",
+                    icon = Icons.Rounded.Shield,
+                    color = VigiaViolet,
+                    onClick = onOpenPrivacy
                 )
-            }
-            if (state.aiConfigured == false) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Aucune clé IA n'est définie sur le serveur : le moteur d'analyse utilise les règles heuristiques réelles sans simulation artificielle.",
-                    fontSize = 11.5.sp,
-                    fontFamily = PoppinsFontFamily,
-                    color = VigiaTextMuted
+                SettingsNavTile(
+                    title = "Centre des Permissions Android",
+                    subtitle = "Moindre privilège, caméra scanner, Guard",
+                    icon = Icons.Rounded.VpnKey,
+                    color = VigiaCyan,
+                    onClick = onOpenPermissions
+                )
+                SettingsNavTile(
+                    title = "Gestion des Appareils Synchronisés",
+                    subtitle = "Terminaux autorisés et révocation de session",
+                    icon = Icons.Rounded.Smartphone,
+                    color = VigiaSecondary,
+                    onClick = onOpenDevices
                 )
             }
         }
 
-        // Préférences d'analyse et d'alertes
-        SectionHeader("Préférences")
-        GlassCard(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Notifications de menaces", fontWeight = FontWeight.SemiBold, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 14.sp)
-                    Spacer(Modifier.height(4.dp))
-                    Text("Émises uniquement lorsqu'un risque avéré est détecté.", fontFamily = PoppinsFontFamily, fontSize = 11.5.sp, color = VigiaTextSecondary)
-                }
-                Switch(
-                    checked = state.notifications,
-                    onCheckedChange = viewModel::setNotifications,
-                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = VigiaPrimary)
+        // ------------------------------------------------------ Etat des moteurs
+        Column {
+            SectionHeader("Santé des Moteurs Forensiques")
+            Spacer(Modifier.height(10.dp))
+            GlassCard(
+                backgroundBrush = luxuryCardGradient(VigiaPrimary),
+                borderBrush = luxuryBorderGradient(VigiaPrimary),
+                cornerRadius = 22.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                EngineStatusRow(
+                    label = "Serveur d'analyse VIGIA",
+                    status = when (state.serverReachable) { true -> "En Ligne"; false -> "Injoignable"; null -> "Vérification…" },
+                    ok = state.serverReachable == true
                 )
+                Spacer(Modifier.height(8.dp))
+                HorizontalDivider(color = VigiaBorderSubtle)
+                Spacer(Modifier.height(8.dp))
+                EngineStatusRow(
+                    label = "Moteur IA Neural Forensique",
+                    status = when (state.aiConfigured) { true -> "Opérationnel"; false -> "Moteur Heuristique"; null -> "Inconnu" },
+                    ok = state.aiConfigured == true
+                )
+                if (state.aiConfigured == false) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Le moteur d'analyse utilise les règles de détection heuristiques en local pour une confidentialité maximale.",
+                        fontSize = 11.5.sp,
+                        fontFamily = PoppinsFontFamily,
+                        color = VigiaTextMuted,
+                        lineHeight = 16.sp
+                    )
+                }
             }
-            Spacer(Modifier.height(14.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Analyses IA approfondies", fontWeight = FontWeight.SemiBold, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 14.sp)
-                    Spacer(Modifier.height(4.dp))
-                    Text("Génère des explications contextuelles via le modèle de langage.", fontFamily = PoppinsFontFamily, fontSize = 11.5.sp, color = VigiaTextSecondary)
+        }
+
+        // ------------------------------------------------------ Préférences
+        Column {
+            SectionHeader("Préférences de Détection")
+            Spacer(Modifier.height(10.dp))
+            GlassCard(
+                backgroundBrush = luxuryCardGradient(VigiaSecondary),
+                borderBrush = luxuryBorderGradient(VigiaSecondary),
+                cornerRadius = 22.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Notifications de menaces", fontWeight = FontWeight.SemiBold, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 14.sp)
+                        Spacer(Modifier.height(3.dp))
+                        Text("Alertes instantanées uniquement lorsqu'un risque avéré est intercepté.", fontFamily = PoppinsFontFamily, fontSize = 11.5.sp, color = VigiaTextSecondary)
+                    }
+                    Switch(
+                        checked = state.notifications,
+                        onCheckedChange = viewModel::setNotifications,
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = VigiaPrimary)
+                    )
                 }
-                Switch(
-                    checked = state.aiEnabled,
-                    onCheckedChange = viewModel::setAi,
-                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = VigiaPrimary)
-                )
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = VigiaBorderSubtle)
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Analyses IA approfondies", fontWeight = FontWeight.SemiBold, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 14.sp)
+                        Spacer(Modifier.height(3.dp))
+                        Text("Génère des explications contextuelles et décortique le Scam DNA.", fontFamily = PoppinsFontFamily, fontSize = 11.5.sp, color = VigiaTextSecondary)
+                    }
+                    Switch(
+                        checked = state.aiEnabled,
+                        onCheckedChange = viewModel::setAi,
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = VigiaPrimary)
+                    )
+                }
             }
         }
 
         state.message?.let { ErrorBanner(it) }
 
-        // Déconnexion
+        // ------------------------------------------------------ Déconnexion
         OutlinedButton(
             onClick = onLogout,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = VigiaPrimary)
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = VigiaPrimary),
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, VigiaPrimary.copy(alpha = 0.4f))
         ) {
             Icon(Icons.Rounded.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Se Déconnecter de la Session", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold)
+            Text("Se Déconnecter de la Session", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 13.sp)
         }
 
-        // Zone de suppression de compte
+        // ------------------------------------------------------ Suppression de compte
         GlassCard(
-            Modifier.fillMaxWidth(),
-            borderColor = RiskDangerBorder,
-            backgroundColor = RiskDangerBg
+            backgroundBrush = luxuryCardGradient(RiskDanger),
+            borderBrush = luxuryBorderGradient(RiskDanger),
+            cornerRadius = 24.dp,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Suppression définitive du compte", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = RiskDanger, fontSize = 14.sp)
-            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconBadge(icon = Icons.Rounded.DeleteForever, tint = RiskDanger, size = 38.dp, iconSize = 18.dp)
+                Spacer(Modifier.width(10.dp))
+                Text("Suppression définitive du compte", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = RiskDanger, fontSize = 14.5.sp)
+            }
+            Spacer(Modifier.height(8.dp))
             Text(
-                "Supprime irréversiblement votre compte, vos clés de session et l'intégralité de vos historiques sur le serveur.",
+                "Supprime irréversiblement votre compte, vos clés cryptographiques et l'intégralité de vos historiques sur le cloud.",
                 fontSize = 12.sp,
                 fontFamily = PoppinsFontFamily,
-                color = VigiaTextSecondary
+                color = VigiaTextSecondary,
+                lineHeight = 17.sp
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
 
             if (!confirmDelete) {
-                TextButton(onClick = { confirmDelete = true }) {
-                    Text("Supprimer mon compte...", color = RiskDanger, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold)
+                OutlinedButton(
+                    onClick = { confirmDelete = true },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = RiskDanger),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Supprimer définitivement mon compte...", color = RiskDanger, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
                 }
             } else {
                 VigiaField(password, { password = it }, "Confirmez votre mot de passe", isPassword = true)
@@ -216,43 +276,48 @@ fun SettingsScreen(
 }
 
 @Composable
+private fun EngineStatusRow(label: String, status: String, ok: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Box(
+            Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(if (ok) RiskSafe else RiskDanger)
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(label, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 13.5.sp, modifier = Modifier.weight(1f))
+        InfoChip(text = status, color = if (ok) RiskSafe else RiskDanger)
+    }
+}
+
+@Composable
 private fun SettingsNavTile(
     title: String,
     subtitle: String,
     icon: ImageVector,
+    color: Color,
     onClick: () -> Unit
 ) {
     GlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        borderColor = VigiaBorder
+        backgroundBrush = luxuryCardGradient(color),
+        borderBrush = luxuryBorderGradient(color),
+        cornerRadius = 20.dp
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFEFF6FF)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = VigiaPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            IconBadge(icon = icon, tint = color, size = 42.dp, iconSize = 20.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 14.sp)
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(3.dp))
                 Text(subtitle, fontSize = 11.5.sp, fontFamily = PoppinsFontFamily, color = VigiaTextSecondary)
             }
             Icon(
                 imageVector = Icons.Rounded.ChevronRight,
                 contentDescription = null,
-                tint = VigiaPrimary,
+                tint = color,
                 modifier = Modifier.size(20.dp)
             )
         }

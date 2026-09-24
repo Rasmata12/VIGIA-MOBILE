@@ -23,6 +23,7 @@ data class AnalysisEntity(
     val summary: String,
     val signalsJson: String,
     val sourcesJson: String,
+    val technicalJson: String = "{}",
     val aiUsed: Boolean,
     val createdAt: String,
     val syncedWithServer: Boolean
@@ -76,7 +77,7 @@ interface PendingDao {
     suspend fun remove(id: Long)
 }
 
-@Database(entities = [AnalysisEntity::class, PendingAnalysisEntity::class], version = 1, exportSchema = false)
+@Database(entities = [AnalysisEntity::class, PendingAnalysisEntity::class], version = 2, exportSchema = false)
 abstract class VigiaDatabase : RoomDatabase() {
     abstract fun analyses(): AnalysisDao
     abstract fun pending(): PendingDao

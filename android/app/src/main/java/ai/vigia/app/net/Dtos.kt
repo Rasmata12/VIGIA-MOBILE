@@ -41,7 +41,8 @@ data class AnalyseRequest(
     val kind: String,
     val content: String,
     val online: Boolean = true,
-    @SerialName("use_ai") val useAi: Boolean = true
+    @SerialName("use_ai") val useAi: Boolean = true,
+    @SerialName("hf_token") val hfToken: String? = null
 )
 
 @Serializable
@@ -66,6 +67,7 @@ data class AnalysisResponse(
     val summary: String,
     val signals: List<SignalDto> = emptyList(),
     val sources: List<SourceDto> = emptyList(),
+    val technical: Map<String, kotlinx.serialization.json.JsonElement> = emptyMap(),
     @SerialName("ai_used") val aiUsed: Boolean = false,
     @SerialName("duration_ms") val durationMs: Int = 0,
     @SerialName("created_at") val createdAt: String
@@ -156,7 +158,8 @@ data class VerifyRequest(
     val kind: String? = null,
     val source: String = "verify",
     val online: Boolean = true,
-    @SerialName("use_ai") val useAi: Boolean = true
+    @SerialName("use_ai") val useAi: Boolean = true,
+    @SerialName("hf_token") val hfToken: String? = null
 )
 
 @Serializable
@@ -172,6 +175,7 @@ data class RiskAssessmentDto(
     val evidence: List<String> = emptyList(),
     @SerialName("scam_dna") val scamDna: List<ScamDnaDto> = emptyList(),
     val sources: List<SourceDto> = emptyList(),
+    val technical: Map<String, kotlinx.serialization.json.JsonElement> = emptyMap(),
     val recommendation: List<String> = emptyList(),
     @SerialName("ai_used") val aiUsed: Boolean = false,
     val timestamp: String = ""
@@ -193,7 +197,8 @@ data class VerifyResponse(
 data class GuardEventRequest(
     @SerialName("package_name") val packageName: String,
     val title: String = "",
-    val text: String
+    val text: String,
+    @SerialName("hf_token") val hfToken: String? = null
 )
 
 @Serializable
@@ -243,7 +248,8 @@ data class BeforePayRequest(
     val amount: String = "",
     val context: String = "",
     val online: Boolean = true,
-    @SerialName("use_ai") val useAi: Boolean = true
+    @SerialName("use_ai") val useAi: Boolean = true,
+    @SerialName("hf_token") val hfToken: String? = null
 )
 
 @Serializable
@@ -334,7 +340,8 @@ data class JobOfferRequest(
     @SerialName("salary_promised") val salaryPromised: String = "",
     @SerialName("fee_requested") val feeRequested: String = "",
     val online: Boolean = true,
-    @SerialName("use_ai") val useAi: Boolean = true
+    @SerialName("use_ai") val useAi: Boolean = true,
+    @SerialName("hf_token") val hfToken: String? = null
 )
 
 @Serializable
@@ -358,7 +365,8 @@ data class ListingRequest(
     @SerialName("deposit_requested") val depositRequested: String = "",
     @SerialName("can_visit_in_person") val canVisitInPerson: Boolean? = null,
     val online: Boolean = true,
-    @SerialName("use_ai") val useAi: Boolean = true
+    @SerialName("use_ai") val useAi: Boolean = true,
+    @SerialName("hf_token") val hfToken: String? = null
 )
 
 @Serializable
@@ -402,6 +410,21 @@ data class CommunityCheckResponse(
 )
 
 @Serializable
+data class CommunityTrendingItem(
+    @SerialName("target_type") val targetType: String,
+    @SerialName("target_key") val targetKey: String,
+    val reporters: Int,
+    @SerialName("last_reported_at") val lastReportedAt: String,
+    @SerialName("top_category") val topCategory: String
+)
+
+@Serializable
+data class CommunityTrendingResponse(
+    @SerialName("window_days") val windowDays: Int,
+    val items: List<CommunityTrendingItem> = emptyList()
+)
+
+@Serializable
 data class FullSettingsPatch(
     @SerialName("notifications_enabled") val notificationsEnabled: Boolean? = null,
     @SerialName("ai_enabled") val aiEnabled: Boolean? = null,
@@ -413,4 +436,22 @@ data class FullSettingsPatch(
     @SerialName("retention_days") val retentionDays: Int? = null,
     val theme: String? = null,
     val language: String? = null
+)
+
+
+@Serializable
+data class MediaAnalysisResponse(
+    val score: Int,
+    val level: String,
+    val summary: String,
+    val indicators: List<String> = emptyList(),
+    @SerialName("recommended_actions") val recommendedActions: List<String> = emptyList(),
+    @SerialName("observed_text") val observedText: String = "",
+    @SerialName("detected_urls") val detectedUrls: List<String> = emptyList(),
+    @SerialName("detected_phones") val detectedPhones: List<String> = emptyList(),
+    @SerialName("vision_score") val visionScore: Int = 0,
+    @SerialName("corroborating_score") val corroboratingScore: Int = 0,
+    val model: String = "",
+    @SerialName("frames_analyzed") val framesAnalyzed: Int = 0,
+    @SerialName("media_type") val mediaType: String = ""
 )

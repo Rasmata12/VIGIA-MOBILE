@@ -47,11 +47,10 @@ docker run -p 8000:8000 --env-file .env vigia-api
 
 1. Ouvrir le dossier `android/` dans **Android Studio** (Ladybug ou plus récent, JDK 17).
    Android Studio télécharge Gradle et le SDK automatiquement au premier ouvrage.
-2. Renseigner l'adresse du backend dans `android/gradle.properties` :
-   - émulateur + backend local : `VIGIA_API_BASE_URL=http://10.0.2.2:8000/`
-   - téléphone réel sur le même Wi-Fi : `http://192.168.X.X:8000/` (et ajouter cette IP
-     dans `app/src/main/res/xml/network_security_config.xml`)
-   - production : `https://api.tondomaine.com/` (HTTPS obligatoire, aucune exception à ajouter)
+2. L'adresse par défaut est le backend déployé :
+   `VIGIA_API_BASE_URL=https://vigia-mobile.onrender.com/` (HTTPS; `/health` a été vérifié).
+   Pour le développement uniquement, l'émulateur Android peut utiliser
+   `http://10.0.2.2:8000/` avec le backend local lancé sur le PC.
 3. Lancer : bouton ▶ (Run).
 
 ### Générer l'APK
@@ -91,7 +90,10 @@ Le dépôt contient `.github/workflows/build-apk.yml`. Il compile l'APK sur les 
 de GitHub — aucun Android Studio nécessaire sur ta machine — et fonctionne même sans
 le wrapper `gradlew` (l'action `gradle/actions/setup-gradle` installe Gradle elle-même).
 
-**Étape 1 — Déployer le backend pour avoir une vraie URL HTTPS (Render) :**
+**Étape 1 — Backend HTTPS :**
+Le backend VIGIA est déjà déployé sur `https://vigia-mobile.onrender.com/`.
+Tu peux vérifier son état sur `https://vigia-mobile.onrender.com/health`.
+Pour le remplacer par ton propre déploiement Render, suis les étapes suivantes :
 1. Sur [render.com](https://render.com) → **New +** → **Web Service** → connecte ton dépôt GitHub,
    ou choisis "Deploy an existing image" si tu préfères construire l'image Docker toi-même.
 2. Dossier racine (Root Directory) : `backend` — c'est là que se trouve le `Dockerfile`.
@@ -104,8 +106,8 @@ le wrapper `gradlew` (l'action `gradle/actions/setup-gradle` installe Gradle ell
    | `VIGIA_DATABASE_URL` | laisse vide pour SQLite (données perdues à chaque redéploiement — ok pour tester), ou l'URL d'une base **PostgreSQL** Render (`postgresql+psycopg://...`) pour la vraie prod |
 
    Facultatif : `VIGIA_GOOGLE_SAFEBROWSING_KEY`, `VIGIA_VIRUSTOTAL_KEY`, `VIGIA_OLLAMA_BASE_URL` / `VIGIA_OC_BASE_URL` + `VIGIA_OC_API_KEY` si tu veux activer la réputation externe ou l'IA (voir tableau plus haut).
-5. Déploie. Render te donne une URL du type `https://vigia-backend-xxxx.onrender.com`.
-6. Vérifie : `curl https://vigia-backend-xxxx.onrender.com/health` → doit répondre `{"status":"ok", ...}`.
+5. Déploie. Render te donne l'URL HTTPS de ton service.
+6. Vérifie `https://<ton-service>.onrender.com/health` → doit répondre `{"status":"ok", ...}`.
    (Le plan gratuit Render met le service en veille après inactivité : le premier appel peut
    prendre ~30s le temps qu'il se réveille — normal, pas une panne.)
 

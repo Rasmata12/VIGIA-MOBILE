@@ -6,7 +6,13 @@ from app.engine.common import EngineResult, Signal, clamp_score, level_from_scor
 from app.engine.lists import BRANDS
 from app.engine.url_engine import analyse_url, extract_urls
 
-ENGINE_VERSION = "1.0.0"
+# Services de messagerie ne sont pas des marques dont la simple mention doit
+# augmenter le risque : WhatsApp/Telegram/Gmail peuvent etre utilises par des
+# personnes ou entreprises legitimes. Ils restent utiles dans d'autres regles
+# contextuelles (contact hors canal officiel, domaine, etc.).
+NON_IMPERSONATION_MENTIONS = {"whatsapp", "telegram", "gmail", "outlook"}
+
+ENGINE_VERSION = "1.1.0"
 
 # (code, libelle, poids, categorie, motifs) - FR + EN + variantes africaines
 PATTERNS: list[tuple[str, str, int, str, list[str]]] = [
@@ -26,9 +32,11 @@ PATTERNS: list[tuple[str, str, int, str, list[str]]] = [
       r"selfie avec", r"\bibanc?\b", r"\biban\b", r"\brib\b", r"social security number"]),
     ("paiement", "Le message demande un paiement, un transfert ou des frais.", 24, "arnaque_financiere",
      [r"payer? des frais", r"frais de (dossier|livraison|douane|activation|deblocage)", r"virement",
-      r"transf[ée]rez?", r"envoyez? (\d|de l'argent|la somme)", r"mobile money", r"orange money", r"moov money",
-      r"\bmtn momo\b", r"\bwave\b", r"recharge", r"carte pr[ée]pay[ée]e", r"coupon", r"gift ?card", r"bitcoin",
-      r"\busdt\b", r"crypto", r"western union", r"moneygram"]),
+      r"transf[ée]rez?", r"envoyez? (\d|de l'argent|la somme)", r"recharge", r"carte pr[ée]pay[ée]e", r"coupon",
+      r"gift ?card", r"bitcoin", r"\busdt\b", r"crypto", r"western union", r"moneygram"]),
+    ("paiement_mobile_context", "Le message demande d'effectuer une operation via un service de paiement mobile.", 16, "arnaque_financiere",
+     [r"(?:payer|payez|envoyez|transf[ée]rez|versez|effectuez).{0,45}(?:mobile money|orange money|moov money|mtn momo|\bwave\b)",
+      r"(?:mobile money|orange money|moov money|mtn momo|\bwave\b).{0,45}(?:payer|payez|envoyez|transf[ée]rez|versez|effectuez)"]),
     ("recompense", "Le message promet un gain, un cadeau ou un remboursement inattendu.", 22, "appat",
      [r"f[ée]licitations", r"vous avez gagn", r"\bgagnant\b", r"\blot\b", r"tirage", r"loterie", r"cadeau",
       r"remboursement", r"vous avez re[çc]u \d", r"prime", r"bonus exceptionnel", r"you (have )?won", r"\bprize\b",
@@ -45,9 +53,9 @@ PATTERNS: list[tuple[str, str, int, str, list[str]]] = [
     ("livraison", "Le message evoque un colis bloque, motif de phishing tres courant.", 16, "appat",
      [r"colis (en attente|bloqu[ée]|non livr[ée])", r"frais de livraison", r"votre (commande|livraison) (est|a [ée]t[ée])",
       r"\bdhl\b", r"\bdouanes?\b", r"package (is )?(pending|waiting)"]),
-    ("romance_emploi", "Le message correspond a une arnaque a l'emploi ou sentimentale.", 18, "appat",
-     [r"offre d'emploi", r"travail a domicile", r"gagnez? \d+ ?(f|fcfa|€|\$) par (jour|semaine)",
-      r"recrutement urgent", r"\bwhatsapp\b.{0,30}\+\d{6,}", r"je t'aime", r"mon ch[ée]ri"]),
+    ("romance_emploi", "Le message contient un motif pouvant correspondre a une arnaque a l'emploi ou sentimentale.", 14, "appat",
+     [r"gagnez? \d+ ?(f|fcfa|€|\$) par (jour|semaine)",
+      r"recrutement urgent", r"je t'aime", r"mon ch[ée]ri"]),
     ("frais_avant_embauche",
      "Le message demande un paiement avant l'embauche ou le debut de la formation : "
      "aucun employeur ou centre de formation legitime ne fait jamais payer pour recruter.",
@@ -80,7 +88,7 @@ PATTERNS: list[tuple[str, str, int, str, list[str]]] = [
      30, "arnaque_annonce",
      [r"acompte (obligatoire|exig[ée]|pour r[ée]server)", r"arrhes? (obligatoires?|pour bloquer)",
       r"verser (un acompte|des arrhes) avant", r"frais de r[ée]servation non remboursable"]),
-    ("contact_hors_canal", "Le message renvoie vers WhatsApp ou Telegram, hors des canaux officiels.", 12, "manipulation",
+    ("contact_hors_canal", "Le message renvoie vers WhatsApp ou Telegram : canal a verifier selon le contexte.", 4, "contact",
      [r"contactez?[- ]nous sur whatsapp", r"[ée]crivez? sur telegram", r"\bt\.me/", r"\bwa\.me/", r"whatsapp\s*:\s*\+?\d"]),
 ]
 
@@ -113,12 +121,15 @@ def _style_signals(text: str) -> list[Signal]:
         signals.append(Signal("exclamations", "Ponctuation excessive, signe d'un message concu pour faire reagir vite.", 6, category="style"))
     if re.search(r"(cher|bonjour)\s+(client|utilisateur|monsieur/madame|user)", text.lower()):
         signals.append(Signal("generic_greeting", "Le message utilise une formule impersonnelle alors qu'un vrai service connait ton nom.", 10, category="style"))
-    brands = sorted({b for b in BRANDS if len(b) >= 5 and re.search(rf"\b{re.escape(b)}\b", text.lower())})
+    brands = sorted({b for b in BRANDS if b not in NON_IMPERSONATION_MENTIONS and len(b) >= 5 and re.search(rf"\b{re.escape(b)}\b", text.lower())})
     if brands:
         signals.append(Signal("brand_mention", f"Le message se reclame de : {', '.join(brands[:4])}. Verifie toujours via l'application officielle, jamais via le lien du message.", 8, ", ".join(brands[:6]), "usurpation"))
-    phones = re.findall(r"\+\d{8,15}", text)
+    # Un numero de contact, a lui seul, n'est pas un signal de fraude : il est
+    # normal dans une annonce, une vente ou un service client. On l'extrait sans
+    # augmenter le score ; les regles de paiement/phishing peuvent le corroborer.
+    phones = re.findall(r"\+\d(?:[ .-]?\d){7,14}", text)
     if phones:
-        signals.append(Signal("phone_contact", "Le message fournit un numero de telephone de contact direct.", 6, ", ".join(phones[:3]), "contact"))
+        signals.append(Signal("phone_contact", "Le message contient un numero de contact.", 0, ", ".join(phones[:3]), "contact"))
     return signals
 
 

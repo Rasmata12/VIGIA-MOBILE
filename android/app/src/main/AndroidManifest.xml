@@ -100,6 +100,13 @@
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
+            <!-- Android 12+ : limiter l'écoute par défaut aux notifications utiles à la protection. -->
+            <meta-data
+                android:name="android.service.notification.default_filter_types"
+                android:value="conversations|alerting" />
+            <meta-data
+                android:name="android.service.notification.disabled_filter_types"
+                android:value="ongoing|silent" />
         </service>
     </application>
 </manifest>

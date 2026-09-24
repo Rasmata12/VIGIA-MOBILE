@@ -51,7 +51,14 @@ object ApiFactory {
         // Client sans authentification, utilise uniquement pour rafraichir la session.
         val plain = Retrofit.Builder()
             .baseUrl(BuildConfig.API_BASE_URL)
-            .client(OkHttpClient.Builder().callTimeout(30, TimeUnit.SECONDS).build())
+            .client(
+                OkHttpClient.Builder()
+                    .connectTimeout(60, TimeUnit.SECONDS)
+                    .readTimeout(60, TimeUnit.SECONDS)
+                    .callTimeout(90, TimeUnit.SECONDS)
+                    .retryOnConnectionFailure(true)
+                    .build()
+            )
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
             .create(ApiService::class.java)
@@ -70,9 +77,9 @@ object ApiFactory {
 
         val client = OkHttpClient.Builder()
             .addInterceptor(AuthInterceptor(tokens, refresher))
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(45, TimeUnit.SECONDS)   // l'analyse IA peut prendre du temps
-            .callTimeout(60, TimeUnit.SECONDS)
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)   // l'analyse IA peut prendre du temps
+            .callTimeout(90, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .build()
 

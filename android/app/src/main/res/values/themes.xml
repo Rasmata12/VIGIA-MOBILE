@@ -1,10 +1,12 @@
 <resources>
-    <style name="Theme.Vigia" parent="android:Theme.Material.NoActionBar">
-        <item name="android:statusBarColor">#050A1E</item>
-        <item name="android:navigationBarColor">#050A1E</item>
-        <item name="android:windowBackground">#050A1E</item>
+    <style name="Theme.Vigia" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#FFFFFF</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
-    <style name="Theme.Vigia.Transparent" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.Vigia.Transparent" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowContentOverlay">@null</item>

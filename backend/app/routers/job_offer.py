@@ -16,9 +16,9 @@ router = APIRouter(prefix="/job-offer", tags=["job-offer"])
 CHECKLIST = [
     "Un employeur ou un centre de formation legitime ne fait JAMAIS payer pour recruter, "
     "que ce soit sous forme de frais de dossier, de kit, de materiel ou de depot de garantie.",
-    "Verifie l'entreprise independamment : site officiel, existence legale (registre du commerce), "
-    "avis en ligne datant de plusieurs mois, pas seulement la page qui t'a contacte.",
-    "Un recruteur serieux ecrit depuis une adresse email professionnelle, pas une messagerie gratuite.",
+    "Verifie l'entreprise independamment : site officiel, existence legale (registre du commerce) si elle en a un, "
+    "coordonnees publiques et traces d'activite coherentes. Ne te fie pas uniquement a la page qui t'a contacte.",
+    "Une adresse professionnelle peut aider a verifier l'identite d'un employeur, mais Gmail, Outlook ou WhatsApp ne prouvent pas a eux seuls une fraude.",
     "Ne transmets jamais de copie de piece d'identite ou de coordonnees bancaires avant la signature "
     "d'un contrat officiel, sur un canal verifie.",
     "Mefie-toi des postes tres bien payes sans qualification ni entretien : c'est rarement legitime.",
@@ -33,10 +33,10 @@ async def analyse_job_offer(
 ) -> JobOfferOut:
     rate_limit(db, f"joboffer:{user.id}", limit=60, window_seconds=3600)
 
-    if not payload.content.strip() and not payload.company_name.strip():
+    if not payload.content.strip():
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
-            "Fournis au moins le texte de l'offre ou le nom de l'entreprise/organisme.",
+            "Fournis le texte de l'offre reçue. Les autres champs sont facultatifs et servent seulement de contexte.",
         )
 
     red_flags: list[str] = []
@@ -50,11 +50,13 @@ async def analyse_job_offer(
         domain = email.rsplit("@", 1)[-1] if "@" in email else ""
         context_parts.append(f"Email de contact du recruteur : {email}")
         if domain in FREE_EMAIL_DOMAINS:
-            red_flags.append(
-                f"Le contact ecrit depuis une messagerie grand public ({domain}) et non un domaine d'entreprise."
-            )
+            # Une adresse Gmail/Outlook n'est pas une preuve d'arnaque : de
+            # petites entreprises, associations et recruteurs indépendants
+            # peuvent légitimement l'utiliser. On la conserve comme point de
+            # vérification, sans la présenter comme un signal majeur.
             context_parts.append(
-                f"Cette adresse utilise une messagerie grand public ({domain}), pas un domaine d'entreprise."
+                f"Point de vérification contextuel : le contact utilise une messagerie grand public ({domain}). "
+                "Cela ne prouve pas une fraude et doit être corroboré par l'identité réelle de l'employeur."
             )
 
     if payload.salary_promised.strip():

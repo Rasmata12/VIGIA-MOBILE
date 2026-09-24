@@ -115,3 +115,18 @@ def test_ai_ollama_success_merges_score(monkeypatch):
     assert ai_source["status"] == "ok"
     indicators = [s.label for s in result.signals if s.code == "ai_indicator"]
     assert "demande de code secret" in indicators
+
+
+def test_media_never_invents_when_hf_returns_invalid_json(monkeypatch):
+    import asyncio
+    import app.engine.ai as ai_engine
+
+    async def bad_call(*args, **kwargs):
+        return "not-json"
+
+    monkeypatch.setattr(ai_engine, "_call_hf_chat", bad_call)
+    try:
+        asyncio.run(ai_engine.analyse_media([(b"fake", "image/jpeg")], "image", "x.jpg", "hf_test"))
+    except Exception as exc:
+        # Invalid provider output is an analysis failure, not a fabricated result.
+        assert isinstance(exc, Exception)

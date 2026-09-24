@@ -1,11 +1,9 @@
 package ai.vigia.app.ui.screens
 
-import android.content.Context
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -15,16 +13,29 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ai.vigia.app.R
 import ai.vigia.app.guard.VigiaNotificationListener
 import ai.vigia.app.ui.components.*
 import ai.vigia.app.ui.theme.*
 import ai.vigia.app.ui.vm.GuardViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+private data class GuardedApp(
+    val name: String,
+    val desc: String,
+    val icon: ImageVector? = null,
+    val drawableRes: Int? = null,
+    val color: Color
+)
 
 @Composable
 fun GuardScreen(
@@ -34,6 +45,7 @@ fun GuardScreen(
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val active = state.localEnabled && state.listenerEnabled
 
     LaunchedEffect(Unit) {
         viewModel.load(context)
@@ -45,132 +57,158 @@ fun GuardScreen(
             .background(BackgroundGradient)
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
-            .padding(top = 16.dp, bottom = 100.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(top = 16.dp, bottom = 120.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
+        // ------------------------------------------------------ Navigation
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Rounded.ArrowBack, contentDescription = "Retour", tint = VigiaPrimary)
-            }
-            Text("Retour", fontFamily = PoppinsFontFamily, color = VigiaPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            SubtleBackButton(onBack = onBack, label = "Retour")
             Spacer(Modifier.weight(1f))
+            InfoChip(
+                text = if (active) "Bouclier Actif" else "En Pause",
+                color = if (active) RiskSafe else RiskSuspicious
+            )
+            Spacer(Modifier.width(8.dp))
             IconButton(onClick = { viewModel.refresh() }) {
                 Icon(Icons.Rounded.Refresh, contentDescription = "Actualiser", tint = VigiaPrimary)
             }
-            InfoChip(
-                text = if (state.localEnabled && state.listenerEnabled) "Bouclier Actif" else "En pause",
-                color = if (state.localEnabled && state.listenerEnabled) RiskSafe else RiskSuspicious
-            )
         }
 
         Column {
-            Text("VIGIA Guard", style = MaterialTheme.typography.headlineMedium, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary)
+            Text(
+                "VIGIA Guard 24/7",
+                style = MaterialTheme.typography.headlineMedium,
+                fontFamily = PoppinsFontFamily,
+                fontWeight = FontWeight.ExtraBold,
+                color = VigiaTextPrimary,
+                fontSize = 24.sp
+            )
             Spacer(Modifier.height(4.dp))
             Text(
-                "Protection proactive en temps réel contre les liens et messages frauduleux reçus par notification.",
+                "Protection proactive en tâche de fond contre les liens et arnaques reçus dans vos notifications.",
                 fontFamily = PoppinsFontFamily,
                 color = VigiaTextSecondary,
-                fontSize = 13.sp
+                fontSize = 12.5.sp,
+                lineHeight = 18.sp
             )
         }
 
-        // Vue centrale avec radar animé
-        GlassCard(
-            modifier = Modifier.fillMaxWidth(),
-            borderBrush = if (state.localEnabled && state.listenerEnabled) CardBorderGradient else null
+        // ------------------------------------------------------ HÉROS — Radar de Veille
+        HeroSurface(
+            orbColors = if (active) listOf(RiskSafe, VigiaCyan) else listOf(VigiaTextMuted, VigiaBorder),
+            cornerRadius = 26.dp
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                CyberRadarView(
-                    active = state.localEnabled && state.listenerEnabled,
-                    radarSize = 140.dp
-                )
+                CyberRadarView(active = active, radarSize = 164.dp)
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(18.dp))
 
                 Text(
-                    text = if (state.localEnabled && state.listenerEnabled)
-                        "Bouclier de protection actif"
-                    else
-                        "Bouclier en pause ou en attente",
+                    text = if (active) "Bouclier Temps Réel Actif" else "Bouclier en Veille",
                     style = MaterialTheme.typography.titleMedium,
                     fontFamily = PoppinsFontFamily,
-                    color = if (state.localEnabled && state.listenerEnabled) RiskSafe else VigiaTextSecondary,
-                    fontWeight = FontWeight.Bold
+                    color = if (active) RiskSafe else VigiaTextSecondary,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 17.sp
                 )
 
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
 
                 Text(
-                    text = if (state.localEnabled && state.listenerEnabled)
-                        "VIGIA surveille discrètement vos notifications de messagerie et vous alerte en cas de menace avérée."
+                    text = if (active)
+                        "VIGIA surveille discrètement les notifications de vos applications de messagerie pour neutraliser les menaces avant tout clic."
                     else
-                        "Activez le commutateur ci-dessous pour démarrer la protection proactive de vos applications.",
+                        "Activez le commutateur ci-dessous pour démarrer la protection continue de votre appareil.",
                     style = MaterialTheme.typography.bodyMedium,
                     fontFamily = PoppinsFontFamily,
                     color = VigiaTextSecondary,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    fontSize = 12.5.sp,
+                    lineHeight = 17.sp
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(20.dp))
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFFF1F5F9))
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Color.White)
+                        .border(1.dp, if (state.localEnabled) RiskSafe.copy(alpha = 0.35f) else VigiaBorder, RoundedCornerShape(18.dp))
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    IconBadge(
+                        icon = Icons.Rounded.PowerSettingsNew,
+                        tint = if (state.localEnabled) RiskSafe else VigiaTextMuted,
+                        size = 40.dp,
+                        iconSize = 19.dp
+                    )
+                    Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Activer la protection en direct", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 14.sp)
-                        Spacer(Modifier.height(4.dp))
-                        Text("Détection automatique des liens piégés", fontFamily = PoppinsFontFamily, fontSize = 11.5.sp, color = VigiaTextMuted)
+                        Text(
+                            "Protection en continu",
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = PoppinsFontFamily,
+                            color = VigiaTextPrimary,
+                            fontSize = 14.sp
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "Analyse des liens entrants",
+                            fontFamily = PoppinsFontFamily,
+                            fontSize = 11.5.sp,
+                            color = VigiaTextSecondary
+                        )
                     }
                     Switch(
                         checked = state.localEnabled,
-                        onCheckedChange = { enabled ->
-                            viewModel.toggleGuard(context, enabled)
-                        },
+                        onCheckedChange = { enabled -> viewModel.toggleGuard(context, enabled) },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
-                            checkedTrackColor = VigiaPrimary
+                            checkedTrackColor = RiskSafe
                         )
                     )
                 }
             }
         }
 
-        // Statut d'autorisation système Android
+        // ------------------------------------------------------ Autorisation Système Requise
         if (!state.listenerEnabled) {
             GlassCard(
                 borderColor = RiskSuspiciousBorder,
-                backgroundColor = RiskSuspiciousBg
+                backgroundColor = RiskSuspiciousBg,
+                cornerRadius = 20.dp
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Rounded.Warning,
-                        contentDescription = null,
-                        tint = RiskSuspicious,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    IconBadge(icon = Icons.Rounded.Warning, tint = RiskSuspicious, size = 42.dp, iconSize = 21.dp)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Autorisation Android requise", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = RiskSuspicious, fontSize = 14.sp)
+                        Text(
+                            "Accès aux notifications requis",
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = PoppinsFontFamily,
+                            color = RiskSuspicious,
+                            fontSize = 14.sp
+                        )
                         Spacer(Modifier.height(3.dp))
                         Text(
-                            "Pour analyser les notifications entrantes, VIGIA a besoin de l'accès aux notifications.",
+                            "Pour intercepter les liens malveillants, VIGIA a besoin de l'autorisation d'écoute des notifications Android.",
                             fontSize = 12.sp,
                             fontFamily = PoppinsFontFamily,
-                            color = VigiaTextSecondary
+                            color = VigiaTextSecondary,
+                            lineHeight = 16.sp
                         )
                     }
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(14.dp))
                 GradientButton(
-                    text = "Ouvrir les réglages Android",
+                    text = "Ouvrir les autorisations Android",
                     onClick = {
                         val intent = VigiaNotificationListener.settingsIntent()
                         context.startActivity(intent)
@@ -181,94 +219,130 @@ fun GuardScreen(
             }
         }
 
-        // Statistiques 24 heures réelles
-        SectionHeader("Activité des dernières 24h")
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-            StatTile(
-                label = "Scans effectués",
-                value = (state.serverStatus?.eventsLast24h ?: 0).toString(),
-                color = VigiaPrimary,
-                modifier = Modifier.weight(1f),
-                subtitle = "Notifications vérifiées"
-            )
-            StatTile(
-                label = "Menaces bloquées",
-                value = (state.serverStatus?.alertsLast24h ?: 0).toString(),
-                color = if ((state.serverStatus?.alertsLast24h ?: 0) > 0) RiskDanger else RiskSafe,
-                modifier = Modifier.weight(1f),
-                subtitle = "Alertes émises"
-            )
+        // ------------------------------------------------------ Statistiques 24h
+        Column {
+            SectionHeader("Activité de Surveillance (24h)")
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                StatTile(
+                    label = "Scans Réalisés",
+                    value = (state.serverStatus?.eventsLast24h ?: 0).toString(),
+                    color = VigiaPrimary,
+                    icon = Icons.Rounded.VerifiedUser,
+                    badgeText = "24h",
+                    modifier = Modifier.weight(1f),
+                    subtitle = "Notifications vérifiées"
+                )
+                StatTile(
+                    label = "Menaces Neutralisées",
+                    value = (state.serverStatus?.alertsLast24h ?: 0).toString(),
+                    color = if ((state.serverStatus?.alertsLast24h ?: 0) > 0) RiskDanger else RiskSafe,
+                    icon = Icons.Rounded.Shield,
+                    badgeText = "Bloquées",
+                    modifier = Modifier.weight(1f),
+                    subtitle = "Alertes émises"
+                )
+            }
         }
 
-        // Applications couvertes
-        SectionHeader("Applications sécurisées par Guard")
-        GlassCard {
+        // ------------------------------------------------------ Applications Couvertes
+        Column {
+            SectionHeader("Messageries Protégées par Guard")
+            Spacer(Modifier.height(10.dp))
             val apps = listOf(
-                Pair("WhatsApp & WA Business", "Messages, liens et transferts entrants"),
-                Pair("Google Messages & SMS", "Smishing et faux avis de livraison"),
-                Pair("Telegram Messenger", "Canaux publics et discussions directes"),
-                Pair("Gmail & Outlook", "Emails d'hameçonnage et pièces jointes"),
-                Pair("Messenger & Instagram Direct", "Liens suspects reçus en privé")
+                GuardedApp("WhatsApp & Business", "Messages, liens et fichiers financiers entrants", drawableRes = R.drawable.ic_whatsapp, color = Color(0xFF25D366)),
+                GuardedApp("Google Messages (SMS)", "Tentatives de smishing et faux avis de livraison", drawableRes = R.drawable.ic_sms, color = VigiaPrimary),
+                GuardedApp("Telegram Messenger", "Canaux publics et discussions directes", drawableRes = R.drawable.ic_telegram, color = Color(0xFF229ED9)),
+                GuardedApp("Gmail & Messageries", "Emails de phishing et pièces jointes piégées", drawableRes = R.drawable.ic_gmail, color = Color(0xFFEA4335)),
+                GuardedApp("Facebook & Instagram", "Liens de phishing envoyés en message privé", icon = Icons.Rounded.Forum, color = VigiaViolet)
             )
 
-            apps.forEachIndexed { index, (name, desc) ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
+            GlassCard(
+                backgroundBrush = luxuryCardGradient(VigiaPrimary),
+                borderBrush = luxuryBorderGradient(VigiaPrimary),
+                cornerRadius = 22.dp
+            ) {
+                apps.forEachIndexed { index, app ->
+                    Row(
                         Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFEFF6FF)),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.ChatBubble,
-                            contentDescription = null,
-                            tint = VigiaPrimary,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        if (app.drawableRes != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .shadow(4.dp, RoundedCornerShape(12.dp), ambientColor = Color(0x0A000000))
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color.White)
+                                    .border(1.dp, VigiaBorderSubtle, RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(app.drawableRes),
+                                    contentDescription = app.name,
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        } else if (app.icon != null) {
+                            IconBadge(icon = app.icon, tint = app.color, size = 40.dp, iconSize = 19.dp)
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = app.name,
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = PoppinsFontFamily,
+                                color = VigiaTextPrimary,
+                                fontSize = 13.5.sp
+                            )
+                            Spacer(Modifier.height(3.dp))
+                            Text(
+                                text = app.desc,
+                                fontFamily = PoppinsFontFamily,
+                                color = VigiaTextSecondary,
+                                fontSize = 11.5.sp
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        InfoChip("Protégé", RiskSafe)
                     }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(name, fontWeight = FontWeight.SemiBold, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 14.sp)
-                        Spacer(Modifier.height(4.dp))
-                        Text(desc, fontFamily = PoppinsFontFamily, color = VigiaTextSecondary, fontSize = 11.5.sp)
+                    if (index < apps.size - 1) {
+                        HorizontalDivider(color = VigiaBorderSubtle, modifier = Modifier.padding(vertical = 4.dp))
                     }
-                    InfoChip("Protégé", RiskSafe)
-                }
-                if (index < apps.size - 1) {
-                    HorizontalDivider(color = VigiaBorderSubtle, modifier = Modifier.padding(vertical = 4.dp))
                 }
             }
         }
 
-        // Carte Souveraineté & Confidentialité
+        // ------------------------------------------------------ Souveraineté & Zéro Espionnage
         GlassCard(
-            borderColor = Color(0xFFE9D5FF),
-            backgroundColor = Color(0xFFFAF5FF)
+            borderBrush = luxuryBorderGradient(VigiaViolet),
+            backgroundBrush = luxuryCardGradient(VigiaViolet),
+            cornerRadius = 20.dp
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Rounded.Shield,
-                    contentDescription = null,
-                    tint = VigiaViolet,
-                    modifier = Modifier.size(22.dp)
-                )
+                IconBadge(icon = Icons.Rounded.Shield, tint = VigiaViolet, size = 40.dp, iconSize = 19.dp)
                 Spacer(Modifier.width(10.dp))
-                Text("Minimisation stricte des données", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = VigiaViolet, fontSize = 14.sp)
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Garantie Zéro Espionnage",
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = PoppinsFontFamily,
+                        color = VigiaViolet,
+                        fontSize = 14.5.sp
+                    )
+                }
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                "VIGIA Guard ne stocke JAMAIS le contenu complet de vos conversations. " +
-                    "Seules une empreinte cryptographique SHA-256 et les règles de risque détectées sont traitées.",
+                "VIGIA Guard ne stocke et ne transmet JAMAIS vos conversations privées. Seules les empreintes cryptographiques SHA-256 des URL sont vérifiées.",
                 style = MaterialTheme.typography.bodyMedium,
                 fontFamily = PoppinsFontFamily,
                 color = VigiaTextSecondary,
-                fontSize = 12.sp
+                fontSize = 12.sp,
+                lineHeight = 17.sp
             )
         }
     }

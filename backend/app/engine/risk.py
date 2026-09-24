@@ -77,6 +77,7 @@ class RiskAssessment:
     scam_dna: list[dict] = field(default_factory=list)
     layers: dict = field(default_factory=dict)
     sources: list[dict] = field(default_factory=list)
+    technical: dict = field(default_factory=dict)
     recommendation: list[str] = field(default_factory=list)
     ai_used: bool = False
     timestamp: str = ""
@@ -99,16 +100,25 @@ def _confidence(result: EngineResult, traits: list[Trait], correlation_bonus: in
         if s.get("name") in {"Google Safe Browsing", "VirusTotal"} and s.get("status") in {"ok", "flagged"}
     )
     network_ok = sum(1 for s in result.sources if s.get("name") in {"DNS", "TLS", "HTTP"} and s.get("status") == "ok")
+    page_ok = sum(1 for s in result.sources if s.get("name") == "Page HTML" and s.get("status") == "ok")
+    rdap_ok = sum(1 for s in result.sources if s.get("name") == "RDAP" and s.get("status") == "ok")
 
-    base = 30
-    base += min(len(positive), 6) * 5          # jusqu'a +30
-    base += (len(distinct_layers) - 1) * 6 if distinct_layers else 0
+    base = 25
+    base += min(len(positive), 6) * 4          # jusqu'a +24
+    base += (len(distinct_layers) - 1) * 5 if distinct_layers else 0
     base += external_ok * 12
     base += min(network_ok, 3) * 3
-    base += 8 if result.ai_used else 0
-    base += 5 if correlation_bonus else 0
-    if not positive and not network_ok and not external_ok:
-        base = 35  # absence de signal sans verification externe = confiance moyenne
+    base += page_ok * 5
+    base += rdap_ok * 5
+    base += 5 if result.ai_used else 0
+    base += 4 if correlation_bonus else 0
+    if not positive and not network_ok and not external_ok and not page_ok and not rdap_ok:
+        base = 32
+    # Une confiance >= 90 n'est possible que si au moins une source de reputation
+    # independante a reellement repondu. Ainsi, "90 %" ne devient pas un simple
+    # emballage marketing autour de l'heuristique locale.
+    if external_ok == 0:
+        base = min(base, 84)
     return clamp_score(base)
 
 
@@ -120,7 +130,11 @@ def assess(
     correlation = correlation or []
     signals.extend(correlation)
 
-    score = clamp_score(sum(s.weight for s in signals))
+    # `result.score` already contains the fused heuristic/AI score. Re-summing
+    # `result.signals` here would discard the AI contribution because AI
+    # explanations intentionally have weight 0. Only add new correlation
+    # signals at this stage.
+    score = clamp_score(result.score + sum(s.weight for s in correlation))
     level = level_from_score(score)
     traits = profile(signals)
 
@@ -133,6 +147,8 @@ def assess(
     for name in ("L1_LOCAL_RULES", "L2_URL", "L3_THREAT_INTEL", "L4_CORRELATION", "L5_AI"):
         layers.setdefault(name, {"contribution": 0, "signals": 0})
     layers["L6_AGGREGATION"] = {"contribution": score, "signals": len(signals)}
+    if result.ai_used:
+        layers["L5_AI"]["ai_score"] = result.extracted.get("ai", {}).get("score")
 
     evidence = [f"{s.label}" + (f" ({s.evidence})" if s.evidence else "")
                 for s in sorted(signals, key=lambda x: -x.weight) if s.weight > 0][:6]
@@ -147,6 +163,7 @@ def assess(
         scam_dna=[t.dict() for t in traits],
         layers=layers,
         sources=result.sources,
+        technical={k: v for k, v in result.extracted.items() if k not in {"visible_text_excerpt"}},
         recommendation=RECOMMENDATIONS[level],
         ai_used=result.ai_used,
         timestamp=datetime.now(timezone.utc).isoformat(),

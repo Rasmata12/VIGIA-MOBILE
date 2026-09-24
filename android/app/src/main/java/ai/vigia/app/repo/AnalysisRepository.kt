@@ -35,7 +35,7 @@ class AnalysisRepository(
     suspend fun analyse(kind: String, content: String, useAi: Boolean): Outcome<AnalysisEntity> =
         withContext(Dispatchers.IO) {
             if (!networkAvailable()) return@withContext localOnly(kind, content)
-            runCatching { api.analyse(AnalyseRequest(kind, content, online = true, useAi = useAi)) }
+            runCatching { api.analyse(AnalyseRequest(kind, content, online = true, useAi = useAi, hfToken = ai.vigia.app.ServiceLocator.tokens.hfToken)) }
                 .fold(
                     { response ->
                         val entity = response.toEntity()
@@ -71,6 +71,7 @@ class AnalysisRepository(
                 ListSerializer(SourceDto.serializer()),
                 listOf(SourceDto("Moteur local VIGIA", "ok", "v${LocalAnalyzer.VERSION} — analyse effectuée sur l'appareil, sans réseau"))
             ),
+            technicalJson = "{}",
             aiUsed = false,
             createdAt = Instant.now().toString(),
             syncedWithServer = false
@@ -85,7 +86,7 @@ class AnalysisRepository(
         if (!networkAvailable()) return@withContext 0
         var synced = 0
         for (item in pending.all()) {
-            val ok = runCatching { api.analyse(AnalyseRequest(item.kind, item.content)) }.getOrNull()
+            val ok = runCatching { api.analyse(AnalyseRequest(item.kind, item.content, hfToken = ai.vigia.app.ServiceLocator.tokens.hfToken)) }.getOrNull()
             if (ok != null) {
                 dao.upsert(ok.toEntity())
                 pending.remove(item.id)
@@ -102,7 +103,7 @@ class AnalysisRepository(
                     AnalysisEntity(
                         id = it.id, kind = it.kind, preview = it.inputPreview, score = it.score,
                         level = it.level, summary = it.summary, signalsJson = "[]", sourcesJson = "[]",
-                        aiUsed = it.aiUsed, createdAt = it.createdAt, syncedWithServer = true
+                        technicalJson = "{}", aiUsed = it.aiUsed, createdAt = it.createdAt, syncedWithServer = true
                     )
                 })
                 Outcome.Success(Unit)
@@ -144,6 +145,7 @@ class AnalysisRepository(
         id = id, kind = kind, preview = inputPreview, score = score, level = level, summary = summary,
         signalsJson = ApiFactory.json.encodeToString(ListSerializer(SignalDto.serializer()), signals),
         sourcesJson = ApiFactory.json.encodeToString(ListSerializer(SourceDto.serializer()), sources),
+        technicalJson = kotlinx.serialization.json.JsonObject(technical).toString(),
         aiUsed = aiUsed, createdAt = createdAt, syncedWithServer = true
     )
 }

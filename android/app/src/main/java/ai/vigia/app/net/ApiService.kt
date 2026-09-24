@@ -2,6 +2,8 @@ package ai.vigia.app.net
 
 import okhttp3.ResponseBody
 import retrofit2.http.Body
+import retrofit2.http.Multipart
+import retrofit2.http.Part
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.HTTP
@@ -32,6 +34,15 @@ interface ApiService {
 
     @POST("analyses")
     suspend fun analyse(@Body body: AnalyseRequest): AnalysisResponse
+
+    @Multipart
+    @POST("media/analyze")
+    suspend fun analyzeMedia(
+        @Part frames: List<okhttp3.MultipartBody.Part>,
+        @Part("media_type") mediaType: okhttp3.RequestBody,
+        @Part("filename") filename: okhttp3.RequestBody,
+        @Part("hf_token") hfToken: okhttp3.RequestBody?
+    ): MediaAnalysisResponse
 
     @GET("analyses/{id}")
     suspend fun analysis(@Path("id") id: String): AnalysisResponse
@@ -144,4 +155,7 @@ interface ApiService {
 
     @GET("community/check")
     suspend fun checkCommunity(@Query("target") target: String): CommunityCheckResponse
+
+    @GET("community/trending")
+    suspend fun communityTrending(@Query("limit") limit: Int = 10): CommunityTrendingResponse
 }

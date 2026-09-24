@@ -8,6 +8,7 @@ import re
 from urllib.parse import urlparse
 
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.engine.url_engine import extract_urls, normalize_url, registrable_domain
@@ -39,7 +40,15 @@ def normalize_target(target_type: str, raw: str) -> str | None:
         return registrable_domain(host) or None
     if target_type == "phone":
         digits = re.sub(r"[^\d+]", "", raw)
-        return digits or None
+        if digits.startswith("00"):
+            digits = "+" + digits[2:]
+        elif digits.startswith("+"):
+            digits = "+" + re.sub(r"\D", "", digits[1:])
+        else:
+            digits = re.sub(r"\D", "", digits)
+        if not digits or len(re.sub(r"\D", "", digits)) < 7:
+            return None
+        return digits
     return None
 
 
@@ -135,7 +144,25 @@ def record_report(
         category=category, description=description[:400], analysis_id=analysis_id,
     )
     db.add(report)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Deux appareils du même compte peuvent envoyer le même signalement
+        # presque simultanément. La contrainte SQL reste l'autorité finale :
+        # on transforme la course en réponse idempotente au lieu d'un 500.
+        db.rollback()
+        existing = (
+            db.query(CommunityReport)
+            .filter(
+                CommunityReport.user_id == user_id,
+                CommunityReport.target_type == target_type,
+                CommunityReport.target_key == target_key,
+            )
+            .first()
+        )
+        if existing is not None:
+            return existing, False
+        raise
     db.refresh(report)
     return report, True
 

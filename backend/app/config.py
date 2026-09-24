@@ -35,7 +35,13 @@ class Settings(BaseSettings):
     oc_api_key: str = ""
     oc_model: str = ""
 
-    ai_request_timeout: float = 30.0
+    # Hugging Face Inference Providers (token optionnel, idealement fourni par requete depuis l'app)
+    hf_token: str = ""
+    hf_model: str = "openai/gpt-oss-120b:fastest"
+    hf_vision_model: str = "Qwen/Qwen2.5-VL-3B-Instruct"
+    hf_base_url: str = "https://router.huggingface.co/v1"
+
+    ai_request_timeout: float = 60.0
 
     allow_network_probes: bool = True
     rate_limit_enabled: bool = True
@@ -58,6 +64,8 @@ class Settings(BaseSettings):
             return bool(self.ollama_base_url.strip() and self.ollama_model.strip())
         if provider == "openai_compatible":
             return bool(self.oc_base_url.strip() and self.oc_model.strip())
+        if provider == "huggingface":
+            return bool(self.hf_token.strip() and self.hf_model.strip())
         return False
 
     @property

@@ -4,8 +4,9 @@ import ipaddress
 import re
 import socket
 import ssl
+from html.parser import HTMLParser
 from datetime import datetime, timezone
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 import httpx
 
@@ -20,11 +21,29 @@ from app.engine.lists import (
     SHORTENERS,
 )
 
-ENGINE_VERSION = "1.0.0"
+ENGINE_VERSION = "2.0.1"
+MAX_PAGE_BYTES = 512 * 1024
+MAX_TEXT_CHARS = 12000
 _settings = get_settings()
 
 URL_RE = re.compile(r"""(?:(?:https?|ftp)://|www\.)[^\s<>"'`\]\[{}]+""", re.IGNORECASE)
 MULTI_TLD = {"co.uk", "com.br", "co.za", "com.au", "co.jp", "org.uk", "gov.uk", "ac.uk", "com.ng"}
+
+# Domaines officiels connus pour les marques les plus usurpees. Cette table n'est
+# jamais utilisee seule pour declarer une fraude : elle sert a corroborer un titre/formulaire
+# qui imite une marque depuis un autre domaine.
+OFFICIAL_BRAND_DOMAINS = {
+    "paypal": {"paypal.com"}, "google": {"google.com"}, "gmail": {"google.com", "gmail.com"},
+    "microsoft": {"microsoft.com"}, "outlook": {"microsoft.com", "outlook.com"},
+    "apple": {"apple.com"}, "icloud": {"icloud.com", "apple.com"},
+    "facebook": {"facebook.com"}, "instagram": {"instagram.com"}, "whatsapp": {"whatsapp.com"},
+    "amazon": {"amazon.com", "amazon.fr"}, "netflix": {"netflix.com"},
+    "dhl": {"dhl.com"}, "fedex": {"fedex.com"}, "orange": {"orange.com", "orange.fr"},
+    "orangemoney": {"orange.com", "orange.fr"}, "wave": {"wave.com", "wave.com"},
+    "mtn": {"mtn.com"}, "mtnmomo": {"mtn.com"}, "moovmoney": {"moov-africa.com"},
+    "ecobank": {"ecobank.com"}, "uba": {"ubagroup.com"}, "boa": {"bankofafrica.net"},
+    "westernunion": {"westernunion.com"}, "moneygram": {"moneygram.com"},
+}
 
 
 def normalize_url(raw: str) -> str:
@@ -102,7 +121,7 @@ def _static_signals(url: str) -> tuple[list[Signal], dict]:
 
     labels = host.split(".")
     if len(labels) >= 5:
-        add(Signal("many_subdomains", f"Le domaine empile {len(labels)} niveaux de sous-domaines, souvent pour noyer la vraie destination.", 14, host, "domaine"))
+        add(Signal("many_subdomains", f"Le domaine empile {len(labels)} niveaux de sous-domaines, ce qui merite une verification supplementaire.", 6, host, "domaine"))
 
     if len(url) > 120:
         add(Signal("long_url", f"Le lien est anormalement long ({len(url)} caracteres).", 8, category="forme"))
@@ -111,11 +130,11 @@ def _static_signals(url: str) -> tuple[list[Signal], dict]:
         add(Signal("shortener", f"Le lien est raccourci via {domain} : la destination reelle est masquee tant qu'on ne l'ouvre pas.", 22, domain, "obfuscation"))
 
     if tld in HIGH_RISK_TLDS:
-        add(Signal("risky_tld", f"L'extension .{tld} est parmi les plus utilisees pour l'hebergement de pages malveillantes.", 18, tld, "domaine"))
+        add(Signal("risky_tld", f"L'extension .{tld} est a surveiller, mais cette caracteristique seule ne prouve pas une fraude.", 8, tld, "domaine"))
 
     for free in FREE_HOSTING:
         if host == free or host.endswith("." + free):
-            add(Signal("free_hosting", f"La page est hebergee sur un service gratuit ({free}), frequemment utilise pour des pages ephemeres de phishing.", 16, free, "hebergement"))
+            add(Signal("free_hosting", f"La page est hebergee sur un service partage ou gratuit ({free}) : cela ne prouve pas une fraude, mais reduit la valeur de confiance du domaine.", 6, free, "hebergement"))
             break
 
     core = domain.split(".")[0] if domain else ""
@@ -133,7 +152,16 @@ def _static_signals(url: str) -> tuple[list[Signal], dict]:
     lowered = (path + "?" + query).lower()
     hits = sorted({w for w in SENSITIVE_PATH_WORDS if w in lowered})
     if hits:
-        add(Signal("sensitive_path", f"L'adresse contient des mots lies aux comptes ou aux paiements ({', '.join(hits[:4])}).", 10 + 4 * min(len(hits), 3), ", ".join(hits[:6]), "contenu"))
+        sensitive_weight = 10 + 4 * min(len(hits), 3)
+        add(Signal("sensitive_path", f"L'adresse contient des mots lies aux comptes ou aux paiements ({', '.join(hits[:4])}).", sensitive_weight, ", ".join(hits[:6]), "contenu"))
+        if parsed.scheme != "https":
+            add(Signal(
+                "http_sensitive_page",
+                "La page semble concerner une connexion ou un paiement mais utilise HTTP non chiffre : ne saisis aucune donnee.",
+                15,
+                ", ".join(hits[:6]),
+                "transport",
+            ))
 
     for ext in DANGEROUS_EXTENSIONS:
         if path.lower().endswith(ext):
@@ -152,6 +180,203 @@ def _static_signals(url: str) -> tuple[list[Signal], dict]:
     meta = {"host": host, "domain": domain, "tld": tld, "scheme": parsed.scheme, "path": path[:200]}
     return signals, meta
 
+
+
+class _PageParser(HTMLParser):
+    """Extracteur HTML minimal et defensif : pas d'execution de JavaScript."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.title_parts: list[str] = []
+        self.text_parts: list[str] = []
+        self.forms: list[dict] = []
+        self.links: list[str] = []
+        self.meta_refresh: list[str] = []
+        self._in_title = False
+        self._current_form: dict | None = None
+
+    def handle_starttag(self, tag, attrs):
+        attrs = {str(k).lower(): str(v) for k, v in attrs if k}
+        tag = tag.lower()
+        if tag == "title":
+            self._in_title = True
+        elif tag == "form":
+            self._current_form = {"action": attrs.get("action", ""), "method": attrs.get("method", "get"), "password": False, "inputs": []}
+            self.forms.append(self._current_form)
+        elif tag == "input" and self._current_form is not None:
+            typ = attrs.get("type", "text").lower()
+            name = attrs.get("name", "").lower()
+            self._current_form["inputs"].append(typ)
+            if typ == "password" or any(x in name for x in ("password", "pass", "pin", "otp", "code", "cvv", "secret")):
+                self._current_form["password"] = True
+        elif tag == "a" and attrs.get("href"):
+            self.links.append(attrs["href"])
+        elif tag == "meta" and attrs.get("http-equiv", "").lower() == "refresh":
+            if attrs.get("content"):
+                self.meta_refresh.append(attrs["content"][:300])
+
+    def handle_endtag(self, tag):
+        if tag.lower() == "title":
+            self._in_title = False
+        elif tag.lower() == "form":
+            self._current_form = None
+
+    def handle_data(self, data):
+        value = " ".join((data or "").split())
+        if not value:
+            return
+        if self._in_title:
+            self.title_parts.append(value)
+        self.text_parts.append(value)
+
+
+def _domain_in_text(text: str, domain: str) -> bool:
+    return domain and domain.lower() in text.lower()
+
+
+async def _page_content_signals(url: str) -> tuple[list[Signal], list[dict], dict]:
+    """Analyse le contenu HTML reel de la destination finale sans executer le code.
+
+    Cette couche ne declare jamais un site frauduleux sur la seule presence d'un mot.
+    Elle cherche des combinaisons : formulaire de mot de passe + domaine non officiel,
+    collecte de secrets, action cross-domain, faux titre de marque, meta-refresh, etc.
+    """
+    signals: list[Signal] = []
+    sources: list[dict] = []
+    meta: dict = {}
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    domain = registrable_domain(host)
+    try:
+        ips = await _resolve(host)
+        if ips and any(not _is_public_ip(ip) for ip in ips):
+            return [Signal("page_internal_target", "La destination finale resout vers une adresse interne : contenu non sonde.", 40, host, "reseau")], [{"name": "Page HTML", "status": "blocked", "detail": "cible interne"}], meta
+        timeout = max(_settings.http_timeout, 8.0)
+        async with httpx.AsyncClient(follow_redirects=False, timeout=timeout, headers={"User-Agent": "VigiaAI-Scanner/2.0"}, verify=True) as client:
+            async with client.stream("GET", url) as response:
+                ctype = response.headers.get("content-type", "").lower()
+                meta["content_type"] = ctype
+                meta["content_length"] = response.headers.get("content-length", "")
+                if "text/html" not in ctype and "application/xhtml+xml" not in ctype:
+                    sources.append({"name": "Page HTML", "status": "skipped", "detail": f"type {ctype or 'inconnu'}"})
+                    return signals, sources, meta
+                chunks: list[bytes] = []
+                total = 0
+                async for chunk in response.aiter_bytes():
+                    if not chunk:
+                        continue
+                    remaining = MAX_PAGE_BYTES - total
+                    if remaining <= 0:
+                        break
+                    part = chunk[:remaining]
+                    chunks.append(part)
+                    total += len(part)
+                    if total >= MAX_PAGE_BYTES:
+                        break
+                raw = b"".join(chunks)
+                charset = "utf-8"
+                match = re.search(r"charset=([\w-]+)", ctype, re.I)
+                if match:
+                    charset = match.group(1)
+                try:
+                    html = raw.decode(charset, errors="replace")
+                except LookupError:
+                    html = raw.decode("utf-8", errors="replace")
+    except Exception as exc:
+        return signals, [{"name": "Page HTML", "status": "error", "detail": type(exc).__name__}], meta
+
+    parser = _PageParser()
+    try:
+        parser.feed(html)
+    except Exception:
+        pass
+    title = " ".join(parser.title_parts).strip()
+    visible = " ".join(parser.text_parts)
+    lowered = (title + " " + visible).lower()[:MAX_TEXT_CHARS]
+    meta["title"] = title[:240]
+    meta["forms"] = len(parser.forms)
+    meta["password_forms"] = sum(1 for f in parser.forms if f.get("password"))
+
+    if parser.forms:
+        signals.append(Signal("html_form", f"La page contient {len(parser.forms)} formulaire(s) HTML.", 4, str(len(parser.forms)), "contenu"))
+    secret_forms = [f for f in parser.forms if f.get("password")]
+    if secret_forms:
+        signals.append(Signal("credential_form", "La page contient un champ pouvant collecter un mot de passe, PIN, OTP ou autre secret.", 18, "formulaire sensible", "vol_de_donnees"))
+        for form in secret_forms:
+            action = form.get("action", "").strip()
+            if action:
+                action_url = urljoin(url, action)
+                action_domain = registrable_domain(urlparse(action_url).hostname or "")
+                if action_domain and action_domain != domain:
+                    signals.append(Signal("cross_domain_form", f"Un formulaire sensible envoie les donnees vers un autre domaine ({action_domain}).", 32, action_domain, "vol_de_donnees"))
+
+    payment_words = {"paiement", "payment", "transfer", "transfert", "wallet", "mobile money", "momo", "wave", "orangemoney", "moov", "mtn"}
+    credential_words = {"mot de passe", "password", "code pin", "pin", "otp", "verification code", "code de verification", "recovery phrase", "seed phrase"}
+    payment_hits = sorted(w for w in payment_words if w in lowered)
+    credential_hits = sorted(w for w in credential_words if w in lowered)
+    if payment_hits:
+        signals.append(Signal("payment_language", f"La page contient un vocabulaire de paiement ({', '.join(payment_hits[:5])}).", 8, ", ".join(payment_hits[:5]), "arnaque_financiere"))
+    if credential_hits:
+        signals.append(Signal("credential_language", f"La page demande ou mentionne des secrets d'acces ({', '.join(credential_hits[:5])}).", 12, ", ".join(credential_hits[:5]), "vol_de_donnees"))
+
+    title_lower = title.lower()
+    for brand, official_domains in OFFICIAL_BRAND_DOMAINS.items():
+        if brand in title_lower or any(brand in x for x in credential_hits + payment_hits):
+            if domain not in official_domains and not any(domain.endswith("." + d) for d in official_domains):
+                signals.append(Signal("brand_page_domain_mismatch", f"La page semble se presenter comme '{brand}' mais le domaine reel est '{domain}'.", 34, f"marque={brand}, domaine={domain}", "usurpation"))
+                break
+
+    if parser.meta_refresh:
+        signals.append(Signal("meta_refresh", "La page utilise une redirection HTML automatique.", 8, parser.meta_refresh[0][:120], "reseau"))
+    if re.search(r"(?:window\.location|location\.href|document\.location)\s*=", html, re.I):
+        signals.append(Signal("js_redirect", "La page contient une redirection JavaScript automatique.", 10, "script de redirection", "reseau"))
+
+    external_domains: set[str] = set()
+    for href in parser.links[:80]:
+        try:
+            absolute = urljoin(url, href)
+            h = urlparse(absolute).hostname or ""
+            d = registrable_domain(h)
+            if d and d != domain:
+                external_domains.add(d)
+        except Exception:
+            continue
+    if len(external_domains) >= 8:
+        signals.append(Signal("many_external_domains", f"La page charge ou reference de nombreux domaines externes ({len(external_domains)}).", 5, ", ".join(sorted(external_domains)[:6]), "contenu"))
+
+    sources.append({"name": "Page HTML", "status": "ok", "detail": f"{len(raw)} octets inspectes, titre={title[:80] or 'sans titre'}, formulaires={len(parser.forms)}"})
+    return signals, sources, meta
+
+
+async def _rdap_signals(domain: str) -> tuple[list[Signal], dict]:
+    if not domain or domain in {"localhost"}:
+        return [], {"name": "RDAP", "status": "skipped", "detail": "domaine non public"}
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=_settings.http_timeout, headers={"User-Agent": "VigiaAI-Scanner/2.0"}) as client:
+            response = await client.get(f"https://rdap.org/domain/{domain}")
+            if response.status_code == 404:
+                return [], {"name": "RDAP", "status": "unknown", "detail": "aucune donnee d'enregistrement"}
+            response.raise_for_status()
+            data = response.json()
+    except Exception as exc:
+        return [], {"name": "RDAP", "status": "error", "detail": type(exc).__name__}
+    registration = None
+    for event in data.get("events", []) or []:
+        if event.get("eventAction") in {"registration", "registered"}:
+            registration = event.get("eventDate")
+            break
+    if not registration:
+        return [], {"name": "RDAP", "status": "ok", "detail": "enregistrement trouve, date non exposee"}
+    try:
+        dt = datetime.fromisoformat(registration.replace("Z", "+00:00"))
+        age = max(0, (datetime.now(timezone.utc) - dt).days)
+    except Exception:
+        return [], {"name": "RDAP", "status": "ok", "detail": "date d'enregistrement illisible"}
+    signals: list[Signal] = []
+    if age <= 7:
+        signals.append(Signal("new_domain", f"Le domaine a ete enregistre il y a {age} jour(s) : indice contextuel, pas une preuve de fraude.", 10, f"age={age}j", "domaine"))
+    elif age <= 30:
+        signals.append(Signal("recent_domain", f"Le domaine a ete enregistre il y a {age} jours : indice contextuel, pas une preuve de fraude.", 5, f"age={age}j", "domaine"))
+    return signals, {"name": "RDAP", "status": "ok", "detail": f"domaine enregistre il y a {age} jour(s)"}
 
 async def _network_signals(url: str) -> tuple[list[Signal], list[dict], dict]:
     signals: list[Signal] = []
@@ -193,9 +418,9 @@ async def _network_signals(url: str) -> tuple[list[Signal], list[dict], dict]:
             meta["cert_issuer"] = cert.get("issuer", "")
             sources.append({"name": "TLS", "status": "ok", "detail": f"certificat emis il y a {cert['age_days']} j par {cert.get('issuer','')}"})
             if cert["age_days"] <= 7:
-                signals.append(Signal("fresh_cert", f"Le certificat du site a ete emis il y a {cert['age_days']} jour(s) : domaine tres recent, signal frequent de campagne de phishing.", 22, category="transport"))
+                signals.append(Signal("fresh_cert", f"Le certificat du site a ete emis il y a {cert['age_days']} jour(s) : le domaine merite une verification supplementaire.", 8, category="transport"))
             elif cert["age_days"] <= 30:
-                signals.append(Signal("recent_cert", f"Le certificat a moins d'un mois ({cert['age_days']} jours).", 10, category="transport"))
+                signals.append(Signal("recent_cert", f"Le certificat a moins d'un mois ({cert['age_days']} jours) : indice contextuel, pas une preuve de fraude.", 4, category="transport"))
 
     chain, final_url, status_code, error = await _redirect_chain(url)
     if error:
@@ -323,17 +548,18 @@ async def _redirect_chain(url: str) -> tuple[list[str], str, int, str]:
 async def analyse_url(url: str, online: bool = True) -> EngineResult:
     normalized = normalize_url(url)
     signals, meta = _static_signals(normalized)
-    sources: list[dict] = [{"name": "Heuristiques VIGIA", "status": "ok", "detail": f"v{ENGINE_VERSION}, hors ligne"}]
+    sources: list[dict] = [{"name": "Heuristiques VIGIA", "status": "ok", "detail": f"v{ENGINE_VERSION}, heuristiques + contenu HTML + reseau"}]
 
     if online and _settings.allow_network_probes:
         import asyncio
 
         from app.engine.reputation import google_safebrowsing, virustotal
 
-        net, gsb, vt = await asyncio.gather(
+        net, gsb, vt, rdap = await asyncio.gather(
             _network_signals(normalized),
             google_safebrowsing(normalized),
             virustotal(normalized),
+            _rdap_signals(registrable_domain(urlparse(normalized).hostname or "")),
             return_exceptions=True,
         )
         if not isinstance(net, Exception):
@@ -343,10 +569,25 @@ async def analyse_url(url: str, online: bool = True) -> EngineResult:
             meta.update(net_meta)
         for reputation in (gsb, vt):
             if isinstance(reputation, Exception):
+                sources.append({"name": "Threat intelligence", "status": "error", "detail": type(reputation).__name__})
                 continue
             rep_signals, rep_source = reputation
             signals.extend(rep_signals)
             sources.append(rep_source)
+        if isinstance(rdap, Exception):
+            sources.append({"name": "RDAP", "status": "error", "detail": type(rdap).__name__})
+        else:
+            rdap_signals, rdap_source = rdap
+            signals.extend(rdap_signals)
+            sources.append(rdap_source)
+        # Inspection du contenu reel de la destination finale : c'est volontairement
+        # separee des redirections afin de ne jamais telecharger un fichier arbitraire
+        # a chaque hop. On ne lit que le HTML et seulement les premiers 512 Ko.
+        final_url = meta.get("final_url") or normalized
+        page_signals, page_sources, page_meta = await _page_content_signals(final_url)
+        signals.extend(page_signals)
+        sources.extend(page_sources)
+        meta.update(page_meta)
 
     score = clamp_score(sum(s.weight for s in signals))
     result = EngineResult(score=score, level=level_from_score(score), signals=signals, sources=sources, extracted=meta)

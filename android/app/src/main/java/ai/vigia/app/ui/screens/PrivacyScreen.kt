@@ -30,8 +30,6 @@ fun PrivacyScreen(
     var showConfirmPurge by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    // Des que le fichier JSON est pret (telecharge depuis GET /privacy/export), on ouvre
-    // le sheet de partage Android pour que l'utilisateur l'enregistre ou l'envoie.
     LaunchedEffect(state.exportedFileUri) {
         val uri = state.exportedFileUri ?: return@LaunchedEffect
         val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
@@ -52,32 +50,76 @@ fun PrivacyScreen(
             .background(BackgroundGradient)
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
-            .padding(top = 16.dp, bottom = 100.dp),
+            .padding(top = 16.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // En-tête de navigation
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Rounded.ArrowBack, contentDescription = "Retour", tint = VigiaPrimary)
-            }
-            Text("Retour", fontFamily = PoppinsFontFamily, color = VigiaPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            SubtleBackButton(onBack = onBack, label = "Retour")
             Spacer(Modifier.weight(1f))
             InfoChip("Zero-Knowledge & RGPD", VigiaPrimary)
         }
 
+        // Titre & Sous-titre
         Column {
-            Text("Centre de Confidentialité", style = MaterialTheme.typography.headlineMedium, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary)
+            Text(
+                "Centre de Confidentialité",
+                style = MaterialTheme.typography.headlineMedium,
+                fontFamily = PoppinsFontFamily,
+                fontWeight = FontWeight.ExtraBold,
+                color = VigiaTextPrimary,
+                fontSize = 24.sp
+            )
             Spacer(Modifier.height(4.dp))
             Text(
-                "Transparence totale et souveraineté absolue sur vos données personnelles.",
+                "Transparence totale et souveraineté absolue sur vos données personnelles et vos audits.",
                 fontFamily = PoppinsFontFamily,
                 color = VigiaTextSecondary,
-                fontSize = 13.sp
+                fontSize = 12.5.sp,
+                lineHeight = 18.sp
             )
         }
 
+        // HÉROS — Souveraineté
+        HeroSurface(orbColors = listOf(VigiaPrimary, VigiaEmerald), cornerRadius = 24.dp) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                IconBadge(icon = Icons.Rounded.EnhancedEncryption, tint = VigiaPrimary, size = 44.dp, iconSize = 22.dp)
+                Spacer(Modifier.width(14.dp))
+                Column {
+                    Text(
+                        "Architecture Zero-Knowledge",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = PoppinsFontFamily,
+                        color = VigiaPrimary,
+                        fontSize = 14.5.sp
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Vos analyses sont traitées de manière chiffrée. Vos identifiants bancaires ou numéros confidentiels ne sont jamais stockés en clair sur nos serveurs.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = PoppinsFontFamily,
+                        color = VigiaTextSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
+                }
+            }
+        }
+
         state.message?.let {
-            GlassCard(borderColor = RiskSafeBorder, backgroundColor = RiskSafeBg) {
-                Text(it, color = RiskSafe, fontWeight = FontWeight.SemiBold, fontFamily = PoppinsFontFamily, style = MaterialTheme.typography.bodyMedium)
+            GlassCard(
+                backgroundBrush = luxuryCardGradient(RiskSafe),
+                borderBrush = luxuryBorderGradient(RiskSafe),
+                cornerRadius = 20.dp
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(icon = Icons.Rounded.CheckCircle, tint = RiskSafe, size = 32.dp, iconSize = 16.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text(it, color = RiskSafe, fontWeight = FontWeight.SemiBold, fontFamily = PoppinsFontFamily, fontSize = 13.sp)
+                }
             }
         }
 
@@ -85,8 +127,7 @@ fun PrivacyScreen(
 
         val summary = state.summary
         if (summary != null) {
-            // Métriques des données stockées
-            SectionHeader("Données Liées à Votre Compte")
+            SectionHeader("Données Liées à Votre Profil")
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 StatTile("Analyses", summary.analysesStored.toString(), VigiaPrimary, Modifier.weight(1f))
                 StatTile("Alertes", summary.alertsStored.toString(), RiskSuspicious, Modifier.weight(1f))
@@ -94,109 +135,130 @@ fun PrivacyScreen(
             }
 
             // Bloc : Ce qui est conservé
-            GlassCard(borderColor = Color(0xFFDBEAFE)) {
+            GlassCard(
+                backgroundBrush = luxuryCardGradient(VigiaPrimary),
+                borderBrush = luxuryBorderGradient(VigiaPrimary),
+                cornerRadius = 22.dp
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Rounded.Assignment,
-                        contentDescription = null,
-                        tint = VigiaPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    IconBadge(icon = Icons.Rounded.Assignment, tint = VigiaPrimary, size = 36.dp, iconSize = 18.dp)
                     Spacer(Modifier.width(10.dp))
-                    Text("Ce qui est conservé", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = VigiaPrimary, fontSize = 14.sp)
+                    Text("Ce qui est conservé pour votre protection", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = VigiaPrimary, fontSize = 14.5.sp)
                 }
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
                 summary.whatIsStored.forEach { item ->
-                    Text("• $item", style = MaterialTheme.typography.bodyMedium, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, modifier = Modifier.padding(vertical = 3.dp))
+                    Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.Top) {
+                        Text("•", color = VigiaPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(item, style = MaterialTheme.typography.bodyMedium, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 12.5.sp)
+                    }
                 }
             }
 
             // Bloc : Ce qui n'est JAMAIS conservé
-            GlassCard(borderColor = RiskSafeBorder, backgroundColor = RiskSafeBg) {
+            GlassCard(
+                backgroundBrush = luxuryCardGradient(RiskSafe),
+                borderBrush = luxuryBorderGradient(RiskSafe),
+                cornerRadius = 22.dp
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Rounded.Shield,
-                        contentDescription = null,
-                        tint = RiskSafe,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    IconBadge(icon = Icons.Rounded.VerifiedUser, tint = RiskSafe, size = 36.dp, iconSize = 18.dp)
                     Spacer(Modifier.width(10.dp))
-                    Text("Ce qui n'est JAMAIS conservé", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = RiskSafe, fontSize = 14.sp)
+                    Text("Ce qui n'est JAMAIS enregistré", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = RiskSafe, fontSize = 14.5.sp)
                 }
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
                 summary.whatIsNeverStored.forEach { item ->
-                    Text("• $item", style = MaterialTheme.typography.bodyMedium, fontFamily = PoppinsFontFamily, color = VigiaTextSecondary, modifier = Modifier.padding(vertical = 3.dp))
+                    Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.Top) {
+                        Text("✓", color = RiskSafe, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(item, style = MaterialTheme.typography.bodyMedium, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 12.5.sp)
+                    }
                 }
             }
 
             // Politique de rétention
-            SectionHeader("Politique de Rétention")
-            GlassCard {
+            SectionHeader("Rétention & Cycle de Vie")
+            GlassCard(
+                backgroundBrush = luxuryCardGradient(VigiaSecondary),
+                borderBrush = luxuryBorderGradient(VigiaSecondary),
+                cornerRadius = 22.dp
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Délai de purge automatique", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary)
-                        Spacer(Modifier.height(4.dp))
-                        Text("Actuellement: ${summary.retentionDays} jours", fontSize = 12.sp, fontFamily = PoppinsFontFamily, color = VigiaTextMuted)
+                        Text("Délai de purge automatique", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 14.sp)
+                        Spacer(Modifier.height(3.dp))
+                        Text("Conservation maximale : ${summary.retentionDays} jours glissants", fontSize = 12.sp, fontFamily = PoppinsFontFamily, color = VigiaTextMuted)
                     }
-                    TextButton(onClick = { viewModel.applyRetention() }) {
-                        Text("Purger maintenant", color = VigiaPrimary, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold)
+                    OutlinedButton(
+                        onClick = { viewModel.applyRetention() },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = VigiaPrimary),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Purger", color = VigiaPrimary, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }
             }
 
             // Actions de souveraineté
-            SectionHeader("Actions de Souveraineté")
+            SectionHeader("Droits et Souveraineté")
 
-            OutlinedButton(
+            GradientButton(
+                text = if (state.exporting) "Exportation en cours…" else "Exporter mes données (JSON RGPD)",
                 onClick = { viewModel.exportData(context) },
                 enabled = !state.exporting,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = VigiaPrimary)
-            ) {
-                if (state.exporting) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = VigiaPrimary)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Préparation de l'export…", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold)
-                } else {
-                    Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Exporter mes données (Format JSON RGPD)", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold)
-                }
-            }
+                loading = state.exporting,
+                icon = Icons.Rounded.FileDownload,
+                modifier = Modifier.fillMaxWidth()
+            )
 
-            GlassCard(borderColor = RiskDangerBorder, backgroundColor = RiskDangerBg) {
-                Text("Suppression intégrale des données", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = RiskDanger, fontSize = 14.sp)
-                Spacer(Modifier.height(4.dp))
+            GlassCard(
+                backgroundBrush = luxuryCardGradient(RiskDanger),
+                borderBrush = luxuryBorderGradient(RiskDanger),
+                cornerRadius = 22.dp
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(icon = Icons.Rounded.DeleteForever, tint = RiskDanger, size = 36.dp, iconSize = 18.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Suppression intégrale des données", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = RiskDanger, fontSize = 14.5.sp)
+                }
+                Spacer(Modifier.height(8.dp))
                 Text(
-                    "Efface immédiatement tout l'historique d'analyses, les événements et les alertes sans supprimer votre compte.",
+                    "Efface immédiatement et irréversiblement tout l'historique d'analyses, les alertes et les métadonnées sans supprimer votre compte.",
                     fontSize = 12.sp,
                     fontFamily = PoppinsFontFamily,
-                    color = VigiaTextSecondary
+                    color = VigiaTextSecondary,
+                    lineHeight = 17.sp
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(14.dp))
 
                 if (!showConfirmPurge) {
-                    TextButton(onClick = { showConfirmPurge = true }) {
-                        Text("Purger toutes mes données", color = RiskDanger, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold)
+                    OutlinedButton(
+                        onClick = { showConfirmPurge = true },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = RiskDanger),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Purger toutes mes données maintenant", color = RiskDanger, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
                     }
                 } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                         Button(
                             onClick = {
                                 viewModel.purgeAllData()
                                 showConfirmPurge = false
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = RiskDanger),
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Confirmer la purge", fontFamily = PoppinsFontFamily)
+                            Text("Confirmer la purge", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                         OutlinedButton(
                             onClick = { showConfirmPurge = false },
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Annuler", fontFamily = PoppinsFontFamily)
+                            Text("Annuler", fontFamily = PoppinsFontFamily, fontSize = 12.sp)
                         }
                     }
                 }

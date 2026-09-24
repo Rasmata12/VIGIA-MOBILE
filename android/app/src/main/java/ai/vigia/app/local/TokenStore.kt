@@ -7,14 +7,17 @@ import androidx.security.crypto.MasterKey
 
 /**
  * Stockage chiffre des jetons (AES-256-GCM, cle dans le Keystore Android).
- * Aucun secret d'API n'est stocke cote application : seuls les jetons de session le sont.
+ * Les jetons de session et la clé Hugging Face de l'utilisateur sont stockés chiffrés.
  */
 class TokenStore(context: Context) {
 
-    private val prefs: SharedPreferences = try {
+    private val prefs: SharedPreferences = run {
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
+        // Aucun fallback en clair : les jetons de session et la clé Hugging Face sont
+        // des secrets. Si le Keystore Android est indisponible, VIGIA échoue fermé
+        // plutôt que de les écrire dans SharedPreferences ordinaires.
         EncryptedSharedPreferences.create(
             context,
             "vigia_secure_prefs",
@@ -22,10 +25,6 @@ class TokenStore(context: Context) {
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
-    } catch (t: Throwable) {
-        // Si le Keystore est indisponible (appareil corrompu), on echoue proprement
-        // vers un stockage non chiffre en mode prive plutot que de crasher l'app.
-        context.getSharedPreferences("vigia_prefs_fallback", Context.MODE_PRIVATE)
     }
 
     var accessToken: String?
@@ -35,6 +34,10 @@ class TokenStore(context: Context) {
     var refreshToken: String?
         get() = prefs.getString(KEY_REFRESH, null)
         set(value) = prefs.edit().putString(KEY_REFRESH, value).apply()
+
+    var hfToken: String?
+        get() = prefs.getString(KEY_HF_TOKEN, null)
+        set(value) { if (value.isNullOrBlank()) prefs.edit().remove(KEY_HF_TOKEN).apply() else prefs.edit().putString(KEY_HF_TOKEN, value).apply() }
 
     var email: String?
         get() = prefs.getString(KEY_EMAIL, null)
@@ -65,6 +68,7 @@ class TokenStore(context: Context) {
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"
         const val KEY_EMAIL = "email"
+        const val KEY_HF_TOKEN = "hf_token"
         const val KEY_ONBOARDING_SEEN = "onboarding_seen"
     }
 }

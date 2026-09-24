@@ -49,7 +49,9 @@ def get_status(
     ).scalar() or 0
     return GuardStatusOut(
         guard_enabled_server_side=row.guard_enabled,
-        listener_enabled_device=True,
+        # Un GET serveur ne peut pas connaître l'état réel du NotificationListener Android.
+        # L'appareil doit le déclarer via POST /guard/status.
+        listener_enabled_device=None,
         events_last_24h=int(events),
         alerts_last_24h=int(alerts),
         store_content=row.guard_store_content,
@@ -117,7 +119,7 @@ async def ingest_event(
 
     record, assessment, alert_created = await run_pipeline(
         db, user, "text", content, module="guard",
-        online=True, use_ai=row.ai_enabled, package_name=payload.package_name,
+        online=True, use_ai=row.ai_enabled, package_name=payload.package_name, hf_token=payload.hf_token,
     )
     return VerifyOut(
         analysis_id=record.id, kind=record.kind, module=record.module,

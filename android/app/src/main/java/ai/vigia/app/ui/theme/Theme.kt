@@ -1,12 +1,15 @@
 package ai.vigia.app.ui.theme
 
+import ai.vigia.app.R
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
@@ -26,13 +29,36 @@ val VigiaSurfaceHigh = Color(0xFFF1F5F9)
 val VigiaBorder = Color(0xFFE2E8F0)
 val VigiaBorderSubtle = Color(0xFFEEF2F6)
 
-// Accents technologiques & cyber-sécurité
-val VigiaPrimary = Color(0xFF2563EB)        // Bleu Royal intense
+// Accents technologiques & cyber-sécurité — calibrés sur le logo officiel VIGIA AI
+val VigiaNavy = Color(0xFF001A5E)           // Bleu marine du bouclier (logo)
+val VigiaNavyDeep = Color(0xFF00123F)       // Marine très profond (fonds héros)
+val VigiaPrimary = Color(0xFF0B57D0)        // Bleu royal intense (logo)
+val VigiaPrimaryBright = Color(0xFF0072E9)  // Bleu électrique exact du logo
 val VigiaSecondary = Color(0xFF4F46E5)      // Indigo profond
-val VigiaCyan = Color(0xFF0284C7)           // Cyan ciel lumineux
+val VigiaCyan = Color(0xFF22D3EE)           // Cyan lumineux (reflet de l'œil du logo)
+val VigiaCyanDeep = Color(0xFF0284C7)       // Cyan ciel plus soutenu
 val VigiaViolet = Color(0xFF7C3AED)         // Violet électrique
 val VigiaBlue = Color(0xFF3B82F6)
+val VigiaEmerald = Color(0xFF10B981)      // Vert émeraude
+val VigiaAmber = Color(0xFFF59E0B)        // Ambre chaud
+val VigiaRose = Color(0xFFF43F5E)         // Rose vif
 val VigiaPrimarySoft = Color(0xFFEFF6FF)
+
+// Couleurs de repère par module — même famille bleu/cyan du logo, nuancées pour que
+// chaque écran ait une identité propre tout en restant clairement "VIGIA AI".
+val ModuleDashboard = VigiaPrimary
+val ModuleAnalyze = VigiaPrimaryBright
+val ModuleGuard = VigiaCyanDeep
+val ModuleMomentShield = Color(0xFF0D9488)   // Teal
+val ModuleHistory = Color(0xFF6366F1)        // Indigo clair
+val ModuleCommunity = VigiaViolet
+val ModuleDevices = Color(0xFF334155)        // Ardoise
+val ModuleListing = Color(0xFF0EA5E9)        // Bleu ciel
+val ModuleJobOffer = Color(0xFFD97706)       // Ambre (vigilance emploi)
+val ModuleBeforePay = Color(0xFFDC2626)      // Rouge alerte (argent)
+val ModulePrivacy = Color(0xFF0F766E)        // Vert sarcelle
+val ModuleSettings = Color(0xFF475569)
+val ModuleAuth = VigiaNavy
 
 // Typographie de précision
 val VigiaTextPrimary = Color(0xFF0F172A)     // Noir ardoise profond
@@ -52,40 +78,37 @@ val RiskDanger = Color(0xFFDC2626)          // Rouge carmin d'alerte
 val RiskDangerBg = Color(0xFFFEF2F2)        // Fond rose d'alerte subtil
 val RiskDangerBorder = Color(0xFFFECACA)
 
-// Dégradés haute fidélité
-val BrandGradient = Brush.horizontalGradient(
-    listOf(VigiaPrimary, VigiaSecondary, VigiaCyan)
+// Dégradés haute fidélité — reproduisent le dégradé exact du logo (marine → bleu → cyan)
+val BrandGradient: Brush = Brush.linearGradient(
+    colors = listOf(VigiaNavy, VigiaPrimary, VigiaPrimaryBright)
 )
-
-val BackgroundGradient = Brush.verticalGradient(
-    listOf(
-        Color(0xFFFFFFFF),
-        Color(0xFFF8FAFC),
-        Color(0xFFF1F5F9)
-    )
+val BrandGradientVivid: Brush = Brush.linearGradient(
+    colors = listOf(VigiaPrimary, VigiaPrimaryBright, VigiaCyan)
 )
-
-val CardGlassGradient = Brush.verticalGradient(
-    listOf(
-        Color(0xFFFFFFFF),
-        Color(0xFFFAFCFF)
-    )
+val HeroGradientDark: Brush = Brush.linearGradient(
+    colors = listOf(VigiaNavyDeep, VigiaNavy, VigiaPrimary)
 )
-
-val CardBorderGradient = Brush.linearGradient(
-    listOf(
-        Color(0xFFE2E8F0),
-        Color(0xFFCBD5E1)
-    )
+fun moduleGradient(accent: Color): Brush = Brush.linearGradient(
+    colors = listOf(accent.copy(alpha = 0.92f), accent)
 )
-
-val SafeBorderGradient = Brush.linearGradient(
-    listOf(RiskSafeBorder, RiskSafe)
+val BackgroundGradient: Brush = Brush.verticalGradient(
+    colors = listOf(Color(0xFFFBFDFF), VigiaCanvas, Color(0xFFF3F7FC))
 )
-
-val DangerBorderGradient = Brush.linearGradient(
-    listOf(RiskDangerBorder, RiskDanger)
+val CardGlassGradient: Brush = Brush.verticalGradient(
+    colors = listOf(Color.White, Color(0xFFFBFDFF))
 )
+val CardTintBlue: Brush = SolidColor(Color(0xFFF3F8FF))
+val CardTintEmerald: Brush = SolidColor(Color(0xFFF0FDF4))
+val CardTintAmber: Brush = SolidColor(Color(0xFFFFFBEB))
+val CardTintRose: Brush = SolidColor(Color(0xFFFEF2F2))
+val CardTintViolet: Brush = SolidColor(Color(0xFFFAF5FF))
+val CardTintCyan: Brush = SolidColor(Color(0xFFECFEFF))
+fun luxuryCardGradient(accent: Color = VigiaPrimary): Brush = SolidColor(accent.copy(alpha = 0.035f))
+fun luxuryBorderGradient(accent: Color = VigiaPrimary): Brush = SolidColor(accent.copy(alpha = 0.28f))
+val SpecularBorderGradient: Brush = SolidColor(VigiaBorder)
+val CardBorderGradient: Brush = SolidColor(VigiaBorder)
+val SafeBorderGradient: Brush = SolidColor(RiskSafe)
+val DangerBorderGradient: Brush = SolidColor(RiskDanger)
 
 fun riskColor(level: String): Color = when (level.lowercase()) {
     "dangerous" -> RiskDanger
@@ -108,8 +131,15 @@ fun riskBackground(level: String): Color = when (level.lowercase()) {
     else -> Color(0xFFEFF6FF)
 }
 
-// Police Poppins standard pour toute l'application
-val PoppinsFontFamily = FontFamily.SansSerif
+// Police Poppins réelle (fichiers .ttf officiels, licence OFL) - remplace l'ancien
+// alias vers la police système par défaut, qui n'etait pas vraiment Poppins.
+val PoppinsFontFamily = FontFamily(
+    Font(R.font.poppins_regular, FontWeight.Normal),
+    Font(R.font.poppins_medium, FontWeight.Medium),
+    Font(R.font.poppins_semibold, FontWeight.SemiBold),
+    Font(R.font.poppins_bold, FontWeight.Bold),
+    Font(R.font.poppins_extrabold, FontWeight.ExtraBold)
+)
 
 private val VigiaLightColors = lightColorScheme(
     primary = VigiaPrimary,

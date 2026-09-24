@@ -3,7 +3,6 @@ package ai.vigia.app.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -11,7 +10,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,29 +32,66 @@ fun DevicesScreen(
             .background(BackgroundGradient)
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
-            .padding(top = 16.dp, bottom = 100.dp),
+            .padding(top = 16.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // En-tête de navigation
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Rounded.ArrowBack, contentDescription = "Retour", tint = VigiaPrimary)
-            }
-            Text("Retour", fontFamily = PoppinsFontFamily, color = VigiaPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            SubtleBackButton(onBack = onBack, label = "Retour")
             Spacer(Modifier.weight(1f))
             IconButton(onClick = { viewModel.load() }) {
                 Icon(Icons.Rounded.Refresh, contentDescription = "Actualiser", tint = VigiaPrimary)
             }
+            InfoChip("Terminaux & Clés", VigiaPrimary)
         }
 
+        // Titre & Sous-titre
         Column {
-            Text("Appareils Connectés", style = MaterialTheme.typography.headlineMedium, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary)
+            Text(
+                "Appareils Connectés",
+                style = MaterialTheme.typography.headlineMedium,
+                fontFamily = PoppinsFontFamily,
+                fontWeight = FontWeight.ExtraBold,
+                color = VigiaTextPrimary,
+                fontSize = 24.sp
+            )
             Spacer(Modifier.height(4.dp))
             Text(
-                "Gérez les téléphones et terminaux autorisés à accéder à votre compte VIGIA AI.",
+                "Supervisez et révoquez instantanément les accès des smartphones et tablettes reliés à votre compte.",
                 fontFamily = PoppinsFontFamily,
                 color = VigiaTextSecondary,
-                fontSize = 13.sp
+                fontSize = 12.5.sp,
+                lineHeight = 18.sp
             )
+        }
+
+        // HÉROS — Sécurité du périmètre
+        HeroSurface(orbColors = listOf(VigiaPrimary, VigiaCyan), cornerRadius = 24.dp) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                IconBadge(icon = Icons.Rounded.PhonelinkLock, tint = VigiaPrimary, size = 44.dp, iconSize = 22.dp)
+                Spacer(Modifier.width(14.dp))
+                Column {
+                    Text(
+                        "Périmètre de Confiance Zéro",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = PoppinsFontFamily,
+                        color = VigiaPrimary,
+                        fontSize = 14.5.sp
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "En cas de perte, vol ou doute sur un smartphone, révoquez immédiatement l'appareil. La clé cryptographique locale sera invalidée en temps réel.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = PoppinsFontFamily,
+                        color = VigiaTextSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
+                }
+            }
         }
 
         state.error?.let { ErrorBanner(it) }
@@ -66,39 +101,34 @@ fun DevicesScreen(
                 CircularProgressIndicator(color = VigiaPrimary)
             }
         } else if (state.devices.isEmpty()) {
-            GlassCard {
+            GlassCard(cornerRadius = 24.dp) {
                 EmptyState(
                     title = "Aucun appareil enregistré",
-                    message = "Vos appareils synchronisés apparaîtront ici."
+                    message = "Vos appareils synchronisés apparaîtront ici dès leur première connexion cryptée."
                 )
             }
         } else {
-            SectionHeader("Terminaux Actifs (${state.devices.size})")
+            SectionHeader("Terminaux Autorisés (${state.devices.size})")
 
             state.devices.forEachIndexed { index, dev ->
+                val cardColor = if (!dev.revoked) VigiaPrimary else RiskDanger
                 GlassCard(
-                    borderColor = if (!dev.revoked) Color(0xFFDBEAFE) else VigiaBorder,
+                    backgroundBrush = luxuryCardGradient(cardColor),
+                    borderBrush = luxuryBorderGradient(cardColor),
+                    cornerRadius = 22.dp,
                     entranceDelayMillis = index * 40L
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFEFF6FF)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Smartphone,
-                                contentDescription = null,
-                                tint = VigiaPrimary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
+                        IconBadge(
+                            icon = Icons.Rounded.Smartphone,
+                            tint = cardColor,
+                            size = 42.dp,
+                            iconSize = 20.dp
+                        )
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                text = if (dev.label.isNotBlank()) dev.label else "Appareil Android",
+                                text = dev.label.ifBlank { "Appareil Android Sécurisé" },
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = PoppinsFontFamily,
                                 color = VigiaTextPrimary,
@@ -106,7 +136,7 @@ fun DevicesScreen(
                             )
                             Spacer(Modifier.height(3.dp))
                             Text(
-                                text = "Dernière connexion: ${dev.lastSeenAt.take(16).replace("T", " ")}",
+                                text = "Dernier signal : ${dev.lastSeenAt.take(16).replace("T", " à ")}",
                                 fontSize = 11.5.sp,
                                 fontFamily = PoppinsFontFamily,
                                 color = VigiaTextSecondary
@@ -120,10 +150,16 @@ fun DevicesScreen(
                     }
 
                     if (!dev.revoked) {
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(12.dp))
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            TextButton(onClick = { viewModel.revoke(dev.id) }) {
-                                Text("Révoquer l'accès", color = RiskDanger, fontFamily = PoppinsFontFamily, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            OutlinedButton(
+                                onClick = { viewModel.revoke(dev.id) },
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = RiskDanger),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, RiskDanger.copy(alpha = 0.5f))
+                            ) {
+                                Icon(Icons.Rounded.Block, contentDescription = null, modifier = Modifier.size(15.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Révoquer l'appareil", fontFamily = PoppinsFontFamily, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -132,32 +168,22 @@ fun DevicesScreen(
         }
 
         if (state.sessions.isNotEmpty()) {
-            SectionHeader("Sessions de Connexion (${state.sessions.size})")
+            SectionHeader("Jetons de Session Cryptographique (${state.sessions.size})")
             state.sessions.forEachIndexed { index, session ->
+                val sessionColor = if (!session.revoked) VigiaSecondary else RiskDanger
                 GlassCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    borderColor = if (!session.revoked) Color(0xFFDBEAFE) else VigiaBorder,
-                    entranceDelayMillis = index * 40L
+                    backgroundBrush = luxuryCardGradient(sessionColor),
+                    borderBrush = luxuryBorderGradient(sessionColor),
+                    cornerRadius = 20.dp,
+                    entranceDelayMillis = index * 40L,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFF1F5F9)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.VpnKey,
-                                contentDescription = null,
-                                tint = VigiaTextSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        IconBadge(icon = Icons.Rounded.Key, tint = sessionColor, size = 36.dp, iconSize = 18.dp)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                text = session.deviceLabel.ifBlank { "Session inconnue" },
+                                text = session.deviceLabel.ifBlank { "Session Web / Mobile" },
                                 fontWeight = FontWeight.SemiBold,
                                 fontFamily = PoppinsFontFamily,
                                 color = VigiaTextPrimary,
@@ -165,13 +191,13 @@ fun DevicesScreen(
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = "Ouverte le ${session.createdAt.take(16).replace("T", " ")} · expire le ${session.expiresAt.take(10)}",
+                                text = "Créée le ${session.createdAt.take(10)} • Expire le ${session.expiresAt.take(10)}",
                                 fontSize = 11.sp,
                                 fontFamily = PoppinsFontFamily,
                                 color = VigiaTextMuted
                             )
                         }
-                        InfoChip(if (session.revoked) "Révoquée" else "Active", if (session.revoked) RiskDanger else RiskSafe)
+                        InfoChip(if (session.revoked) "Expirée" else "Valide", if (session.revoked) RiskDanger else RiskSafe)
                     }
                 }
             }

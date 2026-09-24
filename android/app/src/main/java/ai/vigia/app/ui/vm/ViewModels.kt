@@ -9,6 +9,7 @@ import ai.vigia.app.local.AnalysisEntity
 import ai.vigia.app.net.ApiFactory
 import ai.vigia.app.net.SessionDto
 import ai.vigia.app.net.SettingsPatch
+import ai.vigia.app.net.FullSettingsPatch
 import ai.vigia.app.net.SignalDto
 import ai.vigia.app.net.SourceDto
 import ai.vigia.app.net.StatsResponse
@@ -40,6 +41,7 @@ import ai.vigia.app.net.ListingResponse
 import ai.vigia.app.net.CommunityReportRequest
 import ai.vigia.app.net.CommunityReportResponse
 import ai.vigia.app.net.CommunityCheckResponse
+import ai.vigia.app.net.CommunityTrendingResponse
 
 fun parseSignals(json: String): List<SignalDto> =
     runCatching { ApiFactory.json.decodeFromString(ListSerializer(SignalDto.serializer()), json) }.getOrDefault(emptyList())
@@ -371,7 +373,11 @@ class GuardViewModel : ViewModel() {
 
     fun toggleGuard(context: android.content.Context, enabled: Boolean) {
         GuardPreferences.setEnabled(context, enabled)
-        load(context)
+        viewModelScope.launch {
+            runCatching { api.updateFullSettings(FullSettingsPatch(guardEnabled = enabled)) }
+                .onFailure { _state.value = _state.value.copy(error = "Le serveur n'a pas pu enregistrer l'état de Guard.") }
+            load(context)
+        }
     }
 
     /** Rafraichit juste les compteurs serveur (GET /guard/status), sans re-declarer l'etat
@@ -579,7 +585,7 @@ class JobOfferViewModel : ViewModel() {
         feeRequested: String
     ) {
         if (content.isBlank()) {
-            _state.value = JobOfferUiState(error = "Colle l'offre d'emploi ou de formation reçue.")
+            _state.value = JobOfferUiState(error = "Colle le texte de l'offre reçue. Les autres champs sont facultatifs.")
             return
         }
         _state.value = JobOfferUiState(loading = true)
@@ -655,13 +661,23 @@ data class CommunityUiState(
     val error: String? = null,
     val checkResult: CommunityCheckResponse? = null,
     val reportResult: CommunityReportResponse? = null,
-    val reportSent: Boolean = false
+    val reportSent: Boolean = false,
+    val trending: CommunityTrendingResponse? = null
 )
 
 class CommunityViewModel : ViewModel() {
     private val api = ServiceLocator.api
     private val _state = MutableStateFlow(CommunityUiState())
     val state: StateFlow<CommunityUiState> = _state.asStateFlow()
+
+    init { refreshTrending() }
+
+    fun refreshTrending() {
+        viewModelScope.launch {
+            runCatching { api.communityTrending() }
+                .onSuccess { _state.value = _state.value.copy(trending = it) }
+        }
+    }
 
     fun check(target: String) {
         if (target.isBlank()) {
@@ -687,11 +703,12 @@ class CommunityViewModel : ViewModel() {
                 api.reportToCommunity(CommunityReportRequest(target = target.trim(), category = category, description = description))
             }.onSuccess {
                 _state.value = _state.value.copy(loading = false, reportResult = it, reportSent = true)
+                refreshTrending()
             }.onFailure {
                 _state.value = _state.value.copy(loading = false, error = it.message ?: "Erreur réseau. Réessaie.")
             }
         }
     }
 
-    fun reset() { _state.value = CommunityUiState() }
+    fun reset() { _state.value = CommunityUiState(trending = _state.value.trending) }
 }

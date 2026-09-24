@@ -36,7 +36,9 @@ SYSTEM_PROMPT = (
     '"explanation": "2 a 4 phrases en francais simple expliquant le raisonnement", '
     '"indicators": ["indicateur concret", ...], '
     '"recommended_actions": ["action concrete que l utilisateur doit faire", ...]}'
-    " N'invente jamais de fait technique que tu ne peux pas deduire du contenu fourni."
+    " N'invente jamais de fait technique que tu ne peux pas deduire du contenu fourni. "
+    "Ne considere jamais HTTPS, une marque, un nouveau domaine ou un seul signal heuristique comme une preuve suffisante. "
+    "Si les preuves sont contradictoires ou insuffisantes, conserve un score prudent et explique la limite."
 )
 
 # Petit cache memoire pour eviter de sonder Ollama a chaque appel de /health :
@@ -51,6 +53,7 @@ def _build_prompt(kind: str, content: str, base: EngineResult) -> str:
         f"Type de contenu : {kind}\n"
         f"Score heuristique : {base.score}/100 ({base.level})\n"
         f"Signaux detectes : {json.dumps(signals_desc, ensure_ascii=False)}\n"
+        f"Donnees techniques deja verifiees : {json.dumps(base.extracted, ensure_ascii=False, default=str)[:6000]}\n"
         f"Contenu soumis :\n<<<\n{content[:6000]}\n>>>"
     )
 
@@ -136,9 +139,140 @@ async def _call_openai_compatible(prompt: str) -> str:
     return choices[0]["message"]["content"] if choices else ""
 
 
-async def enrich(kind: str, content: str, base: EngineResult) -> EngineResult:
+async def _call_hf_chat(messages: list[dict], token: str, model: str) -> str:
+    payload = {"model": model, "messages": messages, "temperature": 0.1, "stream": False}
+    async with httpx.AsyncClient(timeout=_settings.ai_request_timeout) as client:
+        response = await client.post(
+            f"{_settings.hf_base_url.rstrip('/')}/chat/completions",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        )
+        response.raise_for_status()
+        data = response.json()
+    return data.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+
+async def analyse_media(frames: list[tuple[bytes, str]], media_type: str, filename: str, token: str | None = None) -> dict:
+    """Analyse photo/vidéo par plusieurs couches.
+
+    Couche A: VLM Hugging Face examine réellement les images.
+    Couche B: le texte/URL/téléphone explicitement observés par le VLM sont
+    repassés dans les moteurs déterministes VIGIA pour corroboration.
+    """
+    api_token = (token or _settings.hf_token).strip()
+    if not api_token:
+        raise RuntimeError("Aucune clé Hugging Face disponible. Ajoutez votre clé dans Profil.")
+    if not frames:
+        raise ValueError("Aucune image exploitable n'a été extraite du média.")
+
+    content = [{"type": "text", "text": (
+        "Tu es l'analyste visuel forensique de VIGIA. Examine TOUTES les images fournies. "
+        "Cherche phishing, faux paiement, fausse preuve de transfert, usurpation de marque, "
+        "QR ou URL suspecte, demande de code secret/OTP, coordonnées incohérentes, fausse annonce, "
+        "capture d'écran manipulée ou autre tentative de fraude. "
+        "Pour le texte, recopie uniquement ce qui est réellement lisible. Pour les URLs et numéros, "
+        "recopie uniquement ceux visibles. Ne devine jamais. "
+        "Réponds UNIQUEMENT en JSON: "
+        "{\"risk_score\":0-100,\"verdict\":\"safe|suspicious|dangerous\", "
+        "\"explanation\":\"2-4 phrases en français\", "
+        "\"indicators\":[...],\"recommended_actions\":[...], "
+        "\"observed_text\":\"texte réellement lisible, sinon chaîne vide\", "
+        "\"detected_urls\":[...],\"detected_phones\":[...]}."
+    )}]
+    import base64
+    for data, mime in frames[:6]:
+        encoded = base64.b64encode(data).decode("ascii")
+        content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{encoded}"}})
+
+    raw = await _call_hf_chat([{"role": "user", "content": content}], api_token, _settings.hf_vision_model)
+    cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    parsed = json.loads(cleaned)
+
+    vision_score = clamp_score(int(float(parsed.get("risk_score", 50))))
+    observed_text = str(parsed.get("observed_text", "")).strip()[:12000]
+    detected_urls = [str(x).strip() for x in parsed.get("detected_urls", []) if str(x).strip()][:10]
+    detected_phones = [str(x).strip() for x in parsed.get("detected_phones", []) if str(x).strip()][:10]
+
+    corroborating_score = 0
+    corroborating_indicators: list[str] = []
+    if observed_text or detected_urls:
+        from app.engine.text_engine import analyse_text
+        from app.engine.url_engine import analyse_url
+        local_text = "\n".join(x for x in [observed_text, *detected_urls, *detected_phones] if x)[:20000]
+        if local_text:
+            local = await analyse_text(local_text, online=False)
+            corroborating_score = local.score
+            corroborating_indicators.extend(s.label for s in local.signals if s.weight > 0)
+        for url in detected_urls[:3]:
+            try:
+                report = await analyse_url(url, online=True)
+                corroborating_score = max(corroborating_score, report.score)
+                corroborating_indicators.extend(s.label for s in report.signals if s.weight >= 12)
+            except Exception:
+                pass
+
+    if corroborating_score > 0:
+        score = clamp_score(
+            max(vision_score, corroborating_score)
+            if abs(vision_score - corroborating_score) > 25
+            else round(0.55 * vision_score + 0.45 * corroborating_score)
+        )
+    else:
+        score = vision_score
+    verdict = level_from_score(score)
+
+    indicators = [str(x) for x in parsed.get("indicators", [])][:8]
+    for item in corroborating_indicators:
+        if item and item not in indicators:
+            indicators.append(item)
+    actions = [str(x) for x in parsed.get("recommended_actions", [])][:6]
+    if verdict == "dangerous" and not actions:
+        actions = ["N'ouvrez pas le contenu et ne communiquez aucun code ou paiement."]
+    elif verdict == "suspicious" and not actions:
+        actions = ["Vérifiez l'expéditeur par un canal officiel avant toute action."]
+
+    summary = str(parsed.get("explanation", "Analyse visuelle effectuée.")).strip()
+    if corroborating_score and corroborating_score >= 35:
+        summary += " Des indices textuels ou URL visibles ont également été corroborés par les moteurs VIGIA."
+
+    return {
+        "score": score, "level": verdict, "summary": summary,
+        "indicators": indicators[:10], "recommended_actions": actions[:6],
+        "observed_text": observed_text, "detected_urls": detected_urls, "detected_phones": detected_phones,
+        "vision_score": vision_score, "corroborating_score": corroborating_score,
+        "model": _settings.hf_vision_model, "frames_analyzed": len(frames[:6]), "media_type": media_type,
+    }
+
+
+async def enrich(kind: str, content: str, base: EngineResult, request_hf_token: str | None = None) -> EngineResult:
     """Fusionne l'analyse heuristique avec une vraie reponse du modele. Echec = heuristique seule."""
     provider = _settings.ai_provider.strip().lower()
+    if request_hf_token and request_hf_token.strip():
+        try:
+            raw = await _call_hf_chat(
+                [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": _build_prompt(kind, content, base)},
+                ],
+                request_hf_token.strip(),
+                _settings.hf_model,
+            )
+            parsed = json.loads(raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip())
+            ai_score = clamp_score(int(float(parsed.get("risk_score", base.score))))
+            explanation = str(parsed.get("explanation", "")).strip()
+            indicators = [str(i) for i in parsed.get("indicators", [])][:6]
+            actions = [str(a) for a in parsed.get("recommended_actions", [])][:5]
+            merged = clamp_score(max(base.score, ai_score) if abs(base.score - ai_score) > 25 else round(0.5 * base.score + 0.5 * ai_score))
+            base.score = merged; base.level = level_from_score(merged); base.ai_used = True
+            base.extracted["ai"] = {"score": ai_score, "indicators": indicators, "actions": actions}
+            if explanation: base.summary = explanation
+            for indicator in indicators: base.signals.append(Signal("ai_indicator", indicator, 0, category="ia"))
+            for action in actions: base.signals.append(Signal("ai_action", action, 0, category="recommandation"))
+            base.sources.append({"name": "Hugging Face", "status": "ok", "detail": f"{_settings.hf_model} (score IA {ai_score})"})
+            return base
+        except Exception as exc:
+            base.sources.append({"name": "Hugging Face", "status": "error", "detail": type(exc).__name__})
+
     if not _settings.has_ai or provider == "none":
         base.sources.append({
             "name": "Analyse IA", "status": "disabled",

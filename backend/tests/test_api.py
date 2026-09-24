@@ -202,3 +202,21 @@ def test_rate_limiter_blocks_flood():
     finally:
         settings.rate_limit_enabled = False
         db.close()
+
+
+def test_community_check_report_and_trending_flow():
+    a = register("community-a@test.io")
+    b = register("community-b@test.io")
+    target = "https://fake-orange-login.top/login"
+    ra = client.post("/community/reports", json={"target": target, "category": "phishing", "description": "Demande de code"}, headers=auth_headers(a))
+    assert ra.status_code == 201, ra.text
+    # Même utilisateur / même cible : pas de doublon.
+    duplicate = client.post("/community/reports", json={"target": target, "category": "phishing"}, headers=auth_headers(a))
+    assert duplicate.status_code == 201 and duplicate.json()["already_reported_by_me"] is True
+    rb = client.post("/community/reports", json={"target": target, "category": "phishing"}, headers=auth_headers(b))
+    assert rb.status_code == 201 and rb.json()["community_reporters"] == 2
+    checked = client.get("/community/check", params={"target": target}, headers=auth_headers(a))
+    assert checked.status_code == 200 and checked.json()["reporters"] == 2
+    trend = client.get("/community/trending", headers=auth_headers(a))
+    assert trend.status_code == 200
+    assert any(x["target_key"] == "fake-orange-login.top" for x in trend.json()["items"])

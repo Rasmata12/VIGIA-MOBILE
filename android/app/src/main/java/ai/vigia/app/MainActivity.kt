@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
                         })
                     } else {
                         when (step) {
-                            LaunchStep.SPLASH -> SplashScreen(onFinished = { step = LaunchStep.WELCOME })
+                            LaunchStep.SPLASH -> SplashScreen(onFinished = { step = LaunchStep.ONBOARDING })
                             LaunchStep.WELCOME -> WelcomeScreen(
                                 onDiscover = { step = LaunchStep.ONBOARDING },
                                 onHaveAccount = enterApp

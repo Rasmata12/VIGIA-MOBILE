@@ -256,7 +256,6 @@ fun AnalyzeScreen(
                 backgroundBrush = luxuryCardGradient(if (kind == "url") VigiaPrimary else VigiaSecondary),
                 borderBrush = luxuryBorderGradient(if (kind == "url") VigiaPrimary else VigiaSecondary)
             ) {
-                // Puces d'exemples de test
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -269,20 +268,6 @@ fun AnalyzeScreen(
                         fontSize = 13.5.sp,
                         color = VigiaTextPrimary
                     )
-                    TextButton(onClick = {
-                        content = if (kind == "url")
-                            "https://connexion-securisee-banque-orange.com.cm/login"
-                        else
-                            "Urgent : Votre compte Wave a été bloqué pour activité suspecte. Cliquez ici pour le réactiver sous 2h : https://wave-unlock.xyz"
-                    }) {
-                        Text(
-                            "Exemple suspect",
-                            fontFamily = PoppinsFontFamily,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = RiskDanger
-                        )
-                    }
                 }
 
                 Spacer(Modifier.height(8.dp))
@@ -290,7 +275,7 @@ fun AnalyzeScreen(
                 VigiaField(
                     value = content,
                     onValueChange = { content = it },
-                    label = if (kind == "url") "https://..." else "Collez le message (SMS, WhatsApp, email)",
+                    label = if (kind == "url") "Saisissez ou collez le lien à vérifier" else "Collez le message reçu (SMS, WhatsApp, e-mail)",
                     singleLine = kind == "url",
                     minLines = if (kind == "url") 1 else 4,
                     supporting = if (kind == "url")

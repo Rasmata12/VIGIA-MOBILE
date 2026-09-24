@@ -131,7 +131,7 @@ fun CommunityScreen(viewModel: CommunityViewModel, onBack: () -> Unit) {
                     value = checkTarget,
                     onValueChange = { checkTarget = it },
                     label = "Numéro, domaine ou URL",
-                    supporting = "Exemple : +225 07… ou https://site-exemple.com"
+                    supporting = "Saisissez un numéro, un domaine ou une adresse web."
                 )
                 Spacer(Modifier.height(14.dp))
                 GradientButton(
@@ -265,16 +265,6 @@ fun CommunityScreen(viewModel: CommunityViewModel, onBack: () -> Unit) {
                     fontSize = 12.5.sp,
                     lineHeight = 18.sp
                 )
-                TextButton(
-                    onClick = {
-                        reportTarget = "+225 05 12 34 56"
-                        reportCategory = "paiement"
-                        reportDescription = "Un appelant se faisait passer pour un agent Mobile Money et demandait mon code secret."
-                    },
-                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)
-                ) {
-                    Text("Remplir un exemple", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold)
-                }
                 VigiaField(
                     value = reportTarget,
                     onValueChange = { reportTarget = it },

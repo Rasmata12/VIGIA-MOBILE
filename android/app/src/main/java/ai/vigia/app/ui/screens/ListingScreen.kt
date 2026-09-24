@@ -198,22 +198,6 @@ fun ListingScreen(
                         fontSize = 15.sp
                     )
                 }
-                TextButton(onClick = {
-                    category = "vehicule"
-                    priceAsked = "2 500 000 FCFA (Toyota RAV4 2021)"
-                    sellerContact = "+225 07 99 88 77 (WhatsApp uniquement)"
-                    depositRequested = "150 000 FCFA (Acompte de réservation)"
-                    canVisit = false
-                    content = "Véhicule propre première main, prix sacrifié pour départ urgent à l'étranger. Impossible de visiter car la voiture est au dépôt douanier. Pour réserver avant les autres acquéreurs, versez 150 000 FCFA remboursables par Wave."
-                }) {
-                    Text(
-                        "Exemple suspect",
-                        fontFamily = PoppinsFontFamily,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = listingColor
-                    )
-                }
             }
 
             Spacer(Modifier.height(14.dp))
@@ -221,7 +205,7 @@ fun ListingScreen(
             VigiaField(
                 value = priceAsked,
                 onValueChange = { priceAsked = it },
-                label = "Prix demandé (ex: 2 500 000 FCFA)",
+                label = "Prix demandé",
                 supporting = "Les prix anormalement bas cachent souvent une escroquerie"
             )
 

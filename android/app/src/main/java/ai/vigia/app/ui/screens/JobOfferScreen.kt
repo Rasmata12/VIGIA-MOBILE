@@ -124,15 +124,6 @@ fun JobOfferScreen(
                         fontSize = 15.sp
                     )
                 }
-                TextButton(onClick = {
-                    companyName = "ONG Internationale Afrique Secours"
-                    contactEmail = "recrutement.ong.afrique@gmail.com"
-                    salaryPromised = "850 000 FCFA / mois"
-                    feeRequested = "15 000 FCFA (Frais d'ouverture de dossier)"
-                    content = "Urgent : Nous recrutons 10 assistants administratifs à distance. Salaire 850 000 FCFA. Envoyez 15 000 FCFA pour valider votre dossier."
-                }) {
-                    Text("Exemple suspect", fontFamily = PoppinsFontFamily, fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = amberColor)
-                }
             }
 
             Spacer(Modifier.height(14.dp))

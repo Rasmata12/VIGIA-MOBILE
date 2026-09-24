@@ -145,21 +145,6 @@ fun BeforePayScreen(
                         fontSize = 15.sp
                     )
                 }
-                TextButton(onClick = {
-                    selectedOperator = "Orange Money"
-                    beneficiary = "Orange Money (+225 07 00 11 22)"
-                    amount = "45 000 FCFA"
-                    message = "Félicitations ! Vous avez gagné 500 000 FCFA. Envoyez 45 000 FCFA de frais de dossier pour débloquer votre gain."
-                    context = "Faux gain de concours par SMS"
-                }) {
-                    Text(
-                        "Exemple arnaque",
-                        fontFamily = PoppinsFontFamily,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = VigiaPrimary
-                    )
-                }
             }
 
             Spacer(Modifier.height(14.dp))
@@ -168,7 +153,7 @@ fun BeforePayScreen(
                 value = beneficiary,
                 onValueChange = { beneficiary = it },
                 label = "Destinataire (numéro ou nom)",
-                supporting = "Ex: +225 07..., +226 70..., $selectedOperator"
+                supporting = "Opérateur sélectionné : $selectedOperator"
             )
 
             Spacer(Modifier.height(10.dp))
@@ -176,7 +161,7 @@ fun BeforePayScreen(
             VigiaField(
                 value = amount,
                 onValueChange = { amount = it },
-                label = "Montant demandé (ex: 25 000 FCFA, 50 EUR)"
+                label = "Montant demandé (facultatif)"
             )
 
             Spacer(Modifier.height(10.dp))

@@ -135,7 +135,7 @@ fun GradientButton(
     Box(
         modifier = modifier
             .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
-            .height(52.dp)
+            .heightIn(min = 52.dp)
             .shadow(if (enabled && !loading) 6.dp else 0.dp, RoundedCornerShape(16.dp), ambientColor = VigiaPrimary.copy(alpha = 0.25f))
             .clip(RoundedCornerShape(16.dp))
             .background(
@@ -146,7 +146,7 @@ fun GradientButton(
         Button(
             onClick = onClick,
             enabled = enabled && !loading,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             shape = RoundedCornerShape(16.dp),
             interactionSource = interactionSource,
             colors = ButtonDefaults.buttonColors(
@@ -166,12 +166,27 @@ fun GradientButton(
                 Spacer(Modifier.width(12.dp))
                 Text("Vérification en cours…", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp)
             } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     if (icon != null) {
                         Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                     }
-                    Text(text, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp, letterSpacing = 0.3.sp)
+                    Text(
+                        text = text,
+                        modifier = Modifier.weight(1f, fill = false),
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        letterSpacing = 0.2.sp,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 20.sp
+                    )
                 }
             }
         }
@@ -307,7 +322,7 @@ fun VigiaField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label, fontFamily = PoppinsFontFamily) },
+        placeholder = { Text(label, fontFamily = PoppinsFontFamily, maxLines = if (singleLine) 1 else 2, overflow = TextOverflow.Ellipsis) },
         leadingIcon = leadingIcon,
         trailingIcon = {
             if (isPassword) {

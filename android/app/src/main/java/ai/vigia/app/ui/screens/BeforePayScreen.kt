@@ -43,6 +43,7 @@ fun BeforePayScreen(
     var beneficiary by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var context by remember { mutableStateOf("") }
+    var showExtraFields by remember { mutableStateOf(false) }
 
     val operators = listOf(
         OperatorItem("Wave", drawableRes = R.drawable.ic_wave, color = Color(0xFF00B2FE)),
@@ -65,7 +66,6 @@ fun BeforePayScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             SubtleBackButton(onBack = onBack, label = "Retour")
             Spacer(Modifier.weight(1f))
-            InfoChip("Audit Financier", VigiaNavy)
         }
 
         // Titre concis
@@ -121,35 +121,7 @@ fun BeforePayScreen(
         }
 
         // Règle de sécurité courte
-        HeroSurface(orbColors = listOf(VigiaNavy, VigiaPrimary), cornerRadius = 20.dp) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconBadge(icon = Icons.Rounded.Shield, tint = VigiaPrimary, size = 40.dp, iconSize = 20.dp)
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(
-                        "Règle de sécurité",
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = PoppinsFontFamily,
-                        color = VigiaNavy,
-                        fontSize = 14.sp
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        "Ne partagez jamais votre code secret. Aucun opérateur ne vous le demandera.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontFamily = PoppinsFontFamily,
-                        color = VigiaTextSecondary,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
-                    )
-                }
-            }
-        }
+        Text("Ne partagez jamais votre code secret.", fontSize = 12.sp, color = VigiaTextSecondary)
 
         // Formulaire d'audit
         GlassCard(
@@ -220,21 +192,14 @@ fun BeforePayScreen(
 
             Spacer(Modifier.height(10.dp))
 
-            VigiaField(
-                value = url,
-                onValueChange = { url = it },
-                label = "Lien reçu (optionnel)",
-                supporting = "Ex: lien de paiement ou page web"
-            )
-
-            Spacer(Modifier.height(10.dp))
-
-            VigiaField(
-                value = context,
-                onValueChange = { context = it },
-                label = "Contexte (achat, acompte, recrutement, aide...)",
-                supporting = "Permet d'évaluer le scénario psychologique"
-            )
+            TextButton(onClick = { showExtraFields = !showExtraFields }) {
+                Text(if (showExtraFields) "Masquer les détails facultatifs" else "Ajouter un lien ou un contexte")
+            }
+            if (showExtraFields) {
+                VigiaField(value = url, onValueChange = { url = it }, label = "Lien reçu (facultatif)")
+                Spacer(Modifier.height(10.dp))
+                VigiaField(value = context, onValueChange = { context = it }, label = "Contexte (facultatif)")
+            }
 
             Spacer(Modifier.height(16.dp))
 

@@ -62,7 +62,6 @@ fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
                             Text("Effacer", color = RiskDanger, fontFamily = PoppinsFontFamily, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
-                    InfoChip("Forensique", VigiaPrimary)
                 }
             }
 

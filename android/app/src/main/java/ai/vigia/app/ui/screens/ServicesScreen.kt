@@ -1,207 +1,76 @@
 package ai.vigia.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import ai.vigia.app.ui.components.BentoActionCard
-import ai.vigia.app.ui.components.SectionHeader
+import ai.vigia.app.ui.components.GlassCard
 import ai.vigia.app.ui.theme.*
 
-/** Hub des Services VIGIA AI :
- * Regroupe les modules spécialisés et donne accès à une académie de leçons dédiée,
- * avec une hiérarchie visuelle riche sans aucun bloc blanc générique. */
+private data class ServiceLink(val name: String, val hint: String, val icon: ImageVector, val color: Color, val route: String)
+
 @Composable
 fun ServicesScreen(onNavigate: (String) -> Unit) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(BackgroundGradient)
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp)
-            .padding(top = 22.dp, bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+    val groups = listOf(
+        "Paiement" to listOf(ServiceLink("Avant de payer", "Vérifier un transfert", Icons.Rounded.AccountBalanceWallet, RiskDanger, "before_pay")),
+        "Achats et emploi" to listOf(
+            ServiceLink("Offres d’emploi", "Repérer les fausses offres", Icons.Rounded.WorkspacePremium, Color(0xFFD97706), "job_offer"),
+            ServiceLink("Petites annonces", "Vérifier un vendeur ou une annonce", Icons.Rounded.Storefront, VigiaViolet, "listing")
+        ),
+        "Apprendre et signaler" to listOf(
+            ServiceLink("Leçons", "Conseils pratiques", Icons.Rounded.School, VigiaPrimary, "lessons"),
+            ServiceLink("Communauté", "Consulter ou envoyer un signalement", Icons.Rounded.Diversity3, RiskSafe, "community"),
+            ServiceLink("Radar", "Menaces signalées récemment", Icons.Rounded.Radar, VigiaPrimary, "moment_shield")
+        ),
+        "Historique" to listOf(ServiceLink("Mes vérifications", "Retrouver les résultats précédents", Icons.Rounded.History, VigiaPrimary, "history"))
+    )
+
+    LazyColumn(
+        Modifier.fillMaxSize().background(BackgroundGradient),
+        contentPadding = PaddingValues(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 110.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Column {
-            Text(
-                "Hub des Services",
-                style = MaterialTheme.typography.headlineMedium,
-                fontFamily = PoppinsFontFamily,
-                fontWeight = FontWeight.ExtraBold,
-                color = VigiaTextPrimary,
-                fontSize = 24.sp
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Tous les outils spécialisés de protection cyber et anti-fraude VIGIA.",
-                fontFamily = PoppinsFontFamily,
-                color = VigiaTextSecondary,
-                fontSize = 12.5.sp,
-                lineHeight = 18.sp
-            )
+        item { Text("Outils", fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, color = VigiaTextPrimary) }
+        groups.forEach { (title, links) ->
+            item { Text(title, modifier = Modifier.padding(top = 8.dp, bottom = 2.dp), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = VigiaTextSecondary) }
+            links.forEach { link -> item(key = link.route) { ServiceRow(link) { onNavigate(link.route) } } }
         }
+    }
+}
 
-        // ------------------------------------------------------ PAIEMENTS & ARGENT
-        Column {
-            SectionHeader(
-                title = "Finances & Transactions",
-                subtitle = "Sécurisez vos transferts d'argent avant tout envoi"
-            )
-            Spacer(Modifier.height(10.dp))
-            BentoActionCard(
-                title = "Before Pay™ — Anti-Arnaque",
-                subtitle = "Auditez un transfert Mobile Money (Wave, Orange, MoMo) ou virement bancaire avant de valider",
-                icon = Icons.Rounded.AccountBalanceWallet,
-                color = RiskDanger,
-                tag = "MOBILE MONEY",
-                featured = true,
-                modifier = Modifier.fillMaxWidth()
-            ) { onNavigate("before_pay") }
-        }
-
-        // ------------------------------------------------------ OPPORTUNITÉS & ANNONCES
-        Column {
-            SectionHeader(
-                title = "Opportunités & Achats",
-                subtitle = "Ne tombez plus dans les pièges d'embauche ou de fausses annonces"
-            )
-            Spacer(Modifier.height(10.dp))
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val stacked = maxWidth < 390.dp
-                if (stacked) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        BentoActionCard(
-                            title = "Offres d'Emploi",
-                            subtitle = "Faux recruteurs, frais de dossier frauduleux",
-                            icon = Icons.Rounded.WorkspacePremium,
-                            color = Color(0xFFD97706),
-                            tag = "RECRUTEMENT",
-                            modifier = Modifier.fillMaxWidth()
-                        ) { onNavigate("job_offer") }
-                        BentoActionCard(
-                            title = "Petites Annonces",
-                            subtitle = "Immobilier, autos, acomptes interdits",
-                            icon = Icons.Rounded.Storefront,
-                            color = VigiaViolet,
-                            tag = "MARKETPLACE",
-                            modifier = Modifier.fillMaxWidth()
-                        ) { onNavigate("listing") }
-                    }
-                } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        BentoActionCard(
-                            title = "Offres d'Emploi",
-                            subtitle = "Faux recruteurs, frais de dossier frauduleux",
-                            icon = Icons.Rounded.WorkspacePremium,
-                            color = Color(0xFFD97706),
-                            tag = "RECRUTEMENT",
-                            modifier = Modifier.weight(1f)
-                        ) { onNavigate("job_offer") }
-                        BentoActionCard(
-                            title = "Petites Annonces",
-                            subtitle = "Immobilier, autos, acomptes interdits",
-                            icon = Icons.Rounded.Storefront,
-                            color = VigiaViolet,
-                            tag = "MARKETPLACE",
-                            modifier = Modifier.weight(1f)
-                        ) { onNavigate("listing") }
-                    }
-                }
+@Composable
+private fun ServiceRow(link: ServiceLink, onClick: () -> Unit) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        backgroundColor = Color.White,
+        borderColor = VigiaBorder,
+        cornerRadius = 16.dp,
+        contentPadding = PaddingValues(horizontal = 13.dp, vertical = 12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(38.dp).clip(CircleShape).background(link.color.copy(alpha = .10f)), contentAlignment = Alignment.Center) {
+                Icon(link.icon, null, tint = link.color, modifier = Modifier.size(20.dp))
             }
-        }
-
-        // ------------------------------------------------------ ACADÉMIE VIGIA (ESPACE DÉDIÉ)
-        Column {
-            SectionHeader(
-                title = "Apprendre",
-                subtitle = "Des leçons pratiques, réunies dans un espace dédié"
-            )
-            Spacer(Modifier.height(10.dp))
-            BentoActionCard(
-                title = "Leçons de cybersécurité",
-                subtitle = "Apprenez à repérer les faux liens, offres, annonces et demandes de paiement.",
-                icon = Icons.Rounded.School,
-                color = VigiaPrimaryBright,
-                tag = "ACADÉMIE",
-                modifier = Modifier.fillMaxWidth()
-            ) { onNavigate("lessons") }
-        }
-
-        // ------------------------------------------------------ SÉCURITÉ CITOYENNE & RADAR
-        Column {
-            SectionHeader(
-                title = "Protection Collective",
-                subtitle = "Participez au réseau d'alerte et surveillez les attaques coordonnées"
-            )
-            Spacer(Modifier.height(10.dp))
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val stacked = maxWidth < 390.dp
-                if (stacked) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        BentoActionCard(
-                            title = "Communauté",
-                            subtitle = "Signaler un escroc ou consulter les alertes",
-                            icon = Icons.Rounded.Diversity3,
-                            color = RiskSafe,
-                            tag = "CITOYEN",
-                            modifier = Modifier.fillMaxWidth()
-                        ) { onNavigate("community") }
-                        BentoActionCard(
-                            title = "Radar Moment",
-                            subtitle = "Vagues de phishing en temps réel",
-                            icon = Icons.Rounded.Radar,
-                            color = VigiaPrimary,
-                            tag = "LIVE 6H",
-                            modifier = Modifier.fillMaxWidth()
-                        ) { onNavigate("moment_shield") }
-                    }
-                } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        BentoActionCard(
-                            title = "Communauté",
-                            subtitle = "Signaler un escroc ou consulter les alertes",
-                            icon = Icons.Rounded.Diversity3,
-                            color = RiskSafe,
-                            tag = "CITOYEN",
-                            modifier = Modifier.weight(1f)
-                        ) { onNavigate("community") }
-                        BentoActionCard(
-                            title = "Radar Moment",
-                            subtitle = "Vagues de phishing en temps réel",
-                            icon = Icons.Rounded.Radar,
-                            color = VigiaPrimary,
-                            tag = "LIVE 6H",
-                            modifier = Modifier.weight(1f)
-                        ) { onNavigate("moment_shield") }
-                    }
-                }
+            Spacer(Modifier.width(11.dp))
+            Column(Modifier.weight(1f)) {
+                Text(link.name, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = VigiaTextPrimary)
+                Text(link.hint, fontSize = 11.sp, color = VigiaTextSecondary)
             }
-        }
-
-        // ------------------------------------------------------ HISTORIQUE FORENSIQUE
-        Column {
-            SectionHeader(
-                title = "Archives & Rapports",
-                subtitle = "Retrouvez l'historique complet de toutes vos vérifications"
-            )
-            Spacer(Modifier.height(10.dp))
-            BentoActionCard(
-                title = "Journal d'Analyses Forensiques",
-                subtitle = "Consultez tous vos rapports passés, scores de risque et preuves techniques archivées",
-                icon = Icons.Rounded.History,
-                color = VigiaPrimaryBright,
-                tag = "ARCHIVES",
-                modifier = Modifier.fillMaxWidth()
-            ) { onNavigate("history") }
+            Icon(Icons.Rounded.ChevronRight, null, tint = VigiaTextMuted)
         }
     }
 }

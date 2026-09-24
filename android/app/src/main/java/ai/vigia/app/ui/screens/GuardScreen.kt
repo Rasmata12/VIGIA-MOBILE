@@ -64,11 +64,6 @@ fun GuardScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             SubtleBackButton(onBack = onBack, label = "Retour")
             Spacer(Modifier.weight(1f))
-            InfoChip(
-                text = if (active) "Bouclier Actif" else "En Pause",
-                color = if (active) RiskSafe else RiskSuspicious
-            )
-            Spacer(Modifier.width(8.dp))
             IconButton(onClick = { viewModel.refresh() }) {
                 Icon(Icons.Rounded.Refresh, contentDescription = "Actualiser", tint = VigiaPrimary)
             }
@@ -83,14 +78,6 @@ fun GuardScreen(
                 color = VigiaTextPrimary,
                 fontSize = 24.sp
             )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Protection proactive en tâche de fond contre les liens et arnaques reçus dans vos notifications.",
-                fontFamily = PoppinsFontFamily,
-                color = VigiaTextSecondary,
-                fontSize = 12.5.sp,
-                lineHeight = 18.sp
-            )
         }
 
         // ------------------------------------------------------ HÉROS — Radar de Veille
@@ -101,10 +88,10 @@ fun GuardScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
+                    .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                CyberRadarView(active = active, radarSize = 164.dp)
+                CyberRadarView(active = active, radarSize = 128.dp)
 
                 Spacer(Modifier.height(18.dp))
 
@@ -298,16 +285,7 @@ fun GuardScreen(
                                 color = VigiaTextPrimary,
                                 fontSize = 13.5.sp
                             )
-                            Spacer(Modifier.height(3.dp))
-                            Text(
-                                text = app.desc,
-                                fontFamily = PoppinsFontFamily,
-                                color = VigiaTextSecondary,
-                                fontSize = 11.5.sp
-                            )
                         }
-                        Spacer(Modifier.width(8.dp))
-                        InfoChip("Protégé", RiskSafe)
                     }
                     if (index < apps.size - 1) {
                         HorizontalDivider(color = VigiaBorderSubtle, modifier = Modifier.padding(vertical = 4.dp))

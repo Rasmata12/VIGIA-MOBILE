@@ -74,7 +74,6 @@ fun AnalyzeScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             SubtleBackButton(onBack = onBack, label = "Retour")
             Spacer(Modifier.weight(1f))
-            InfoChip("Protection multi-couches", VigiaPrimary)
         }
 
         Column {

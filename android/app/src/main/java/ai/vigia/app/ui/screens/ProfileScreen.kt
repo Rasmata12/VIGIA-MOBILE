@@ -32,7 +32,6 @@ fun ProfileScreen(viewModel: SettingsViewModel, onOpenSettings: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text("Profil", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 25.sp, color = VigiaTextPrimary)
-        Text("Votre compte et les préférences de protection.", fontFamily = PoppinsFontFamily, fontSize = 12.5.sp, color = VigiaTextSecondary)
 
         GlassCard(backgroundColor = Color.White, borderColor = VigiaBorder, cornerRadius = 18.dp) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -47,7 +46,7 @@ fun ProfileScreen(viewModel: SettingsViewModel, onOpenSettings: () -> Unit) {
             }
         }
 
-        SectionHeader("Moteurs", "État réel du serveur et de l'intelligence artificielle")
+        SectionHeader("État des services")
         GlassCard(backgroundColor = Color.White, borderColor = VigiaBorder) {
             EngineRow("Serveur VIGIA", when (state.serverReachable) { true -> "En ligne"; false -> "Hors ligne"; null -> "Vérification…" }, state.serverReachable == true)
             Spacer(Modifier.height(10.dp))
@@ -56,7 +55,7 @@ fun ProfileScreen(viewModel: SettingsViewModel, onOpenSettings: () -> Unit) {
             EngineRow("IA VIGIA", when (state.aiConfigured) { true -> "Opérationnelle"; false -> "Non configurée"; null -> "Inconnue" }, state.aiConfigured == true)
         }
 
-        SectionHeader("Préférences", "Contrôles visibles et modifiables sans ouvrir un autre écran")
+        SectionHeader("Préférences")
         GlassCard(backgroundColor = Color.White, borderColor = VigiaBorder) {
             SettingSwitch("Notifications de menace", "Recevoir les alertes VIGIA", state.notifications, viewModel::setNotifications)
             Spacer(Modifier.height(10.dp)); HorizontalDivider(color = VigiaBorderSubtle); Spacer(Modifier.height(10.dp))

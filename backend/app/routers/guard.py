@@ -119,7 +119,7 @@ async def ingest_event(
 
     record, assessment, alert_created = await run_pipeline(
         db, user, "text", content, module="guard",
-        online=True, use_ai=row.ai_enabled, package_name=payload.package_name, hf_token=payload.hf_token,
+        online=True, use_ai=row.ai_enabled, package_name=payload.package_name,
     )
     return VerifyOut(
         analysis_id=record.id, kind=record.kind, module=record.module,

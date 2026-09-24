@@ -152,16 +152,16 @@ async def _call_hf_chat(messages: list[dict], token: str, model: str) -> str:
     return data.get("choices", [{}])[0].get("message", {}).get("content", "")
 
 
-async def analyse_media(frames: list[tuple[bytes, str]], media_type: str, filename: str, token: str | None = None) -> dict:
+async def analyse_media(frames: list[tuple[bytes, str]], media_type: str, filename: str) -> dict:
     """Analyse photo/vidéo par plusieurs couches.
 
     Couche A: VLM Hugging Face examine réellement les images.
     Couche B: le texte/URL/téléphone explicitement observés par le VLM sont
     repassés dans les moteurs déterministes VIGIA pour corroboration.
     """
-    api_token = (token or _settings.hf_token).strip()
+    api_token = _settings.hf_token.strip()
     if not api_token:
-        raise RuntimeError("Aucune clé Hugging Face disponible. Ajoutez votre clé dans Profil.")
+        raise RuntimeError("Le moteur vision Hugging Face n'est pas configuré sur le serveur VIGIA.")
     if not frames:
         raise ValueError("Aucune image exploitable n'a été extraite du média.")
 
@@ -244,35 +244,9 @@ async def analyse_media(frames: list[tuple[bytes, str]], media_type: str, filena
     }
 
 
-async def enrich(kind: str, content: str, base: EngineResult, request_hf_token: str | None = None) -> EngineResult:
+async def enrich(kind: str, content: str, base: EngineResult) -> EngineResult:
     """Fusionne l'analyse heuristique avec une vraie reponse du modele. Echec = heuristique seule."""
     provider = _settings.ai_provider.strip().lower()
-    if request_hf_token and request_hf_token.strip():
-        try:
-            raw = await _call_hf_chat(
-                [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": _build_prompt(kind, content, base)},
-                ],
-                request_hf_token.strip(),
-                _settings.hf_model,
-            )
-            parsed = json.loads(raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip())
-            ai_score = clamp_score(int(float(parsed.get("risk_score", base.score))))
-            explanation = str(parsed.get("explanation", "")).strip()
-            indicators = [str(i) for i in parsed.get("indicators", [])][:6]
-            actions = [str(a) for a in parsed.get("recommended_actions", [])][:5]
-            merged = clamp_score(max(base.score, ai_score) if abs(base.score - ai_score) > 25 else round(0.5 * base.score + 0.5 * ai_score))
-            base.score = merged; base.level = level_from_score(merged); base.ai_used = True
-            base.extracted["ai"] = {"score": ai_score, "indicators": indicators, "actions": actions}
-            if explanation: base.summary = explanation
-            for indicator in indicators: base.signals.append(Signal("ai_indicator", indicator, 0, category="ia"))
-            for action in actions: base.signals.append(Signal("ai_action", action, 0, category="recommandation"))
-            base.sources.append({"name": "Hugging Face", "status": "ok", "detail": f"{_settings.hf_model} (score IA {ai_score})"})
-            return base
-        except Exception as exc:
-            base.sources.append({"name": "Hugging Face", "status": "error", "detail": type(exc).__name__})
-
     if not _settings.has_ai or provider == "none":
         base.sources.append({
             "name": "Analyse IA", "status": "disabled",
@@ -281,7 +255,18 @@ async def enrich(kind: str, content: str, base: EngineResult, request_hf_token: 
         return base
 
     prompt = _build_prompt(kind, content, base)
-    caller = _call_ollama if provider == "ollama" else _call_openai_compatible
+    if provider == "huggingface":
+        async def caller(prompt: str) -> str:
+            return await _call_hf_chat(
+                [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                _settings.hf_token,
+                _settings.hf_model,
+            )
+    else:
+        caller = _call_ollama if provider == "ollama" else _call_openai_compatible
 
     parsed: dict | None = None
     last_error = ""

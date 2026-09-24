@@ -41,8 +41,7 @@ data class AnalyseRequest(
     val kind: String,
     val content: String,
     val online: Boolean = true,
-    @SerialName("use_ai") val useAi: Boolean = true,
-    @SerialName("hf_token") val hfToken: String? = null
+    @SerialName("use_ai") val useAi: Boolean = true
 )
 
 @Serializable
@@ -158,8 +157,7 @@ data class VerifyRequest(
     val kind: String? = null,
     val source: String = "verify",
     val online: Boolean = true,
-    @SerialName("use_ai") val useAi: Boolean = true,
-    @SerialName("hf_token") val hfToken: String? = null
+    @SerialName("use_ai") val useAi: Boolean = true
 )
 
 @Serializable
@@ -197,8 +195,7 @@ data class VerifyResponse(
 data class GuardEventRequest(
     @SerialName("package_name") val packageName: String,
     val title: String = "",
-    val text: String,
-    @SerialName("hf_token") val hfToken: String? = null
+    val text: String
 )
 
 @Serializable
@@ -248,8 +245,7 @@ data class BeforePayRequest(
     val amount: String = "",
     val context: String = "",
     val online: Boolean = true,
-    @SerialName("use_ai") val useAi: Boolean = true,
-    @SerialName("hf_token") val hfToken: String? = null
+    @SerialName("use_ai") val useAi: Boolean = true
 )
 
 @Serializable
@@ -340,8 +336,7 @@ data class JobOfferRequest(
     @SerialName("salary_promised") val salaryPromised: String = "",
     @SerialName("fee_requested") val feeRequested: String = "",
     val online: Boolean = true,
-    @SerialName("use_ai") val useAi: Boolean = true,
-    @SerialName("hf_token") val hfToken: String? = null
+    @SerialName("use_ai") val useAi: Boolean = true
 )
 
 @Serializable
@@ -365,8 +360,7 @@ data class ListingRequest(
     @SerialName("deposit_requested") val depositRequested: String = "",
     @SerialName("can_visit_in_person") val canVisitInPerson: Boolean? = null,
     val online: Boolean = true,
-    @SerialName("use_ai") val useAi: Boolean = true,
-    @SerialName("hf_token") val hfToken: String? = null
+    @SerialName("use_ai") val useAi: Boolean = true
 )
 
 @Serializable

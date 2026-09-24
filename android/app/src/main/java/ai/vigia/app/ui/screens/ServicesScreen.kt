@@ -15,11 +15,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.vigia.app.ui.components.BentoActionCard
 import ai.vigia.app.ui.components.SectionHeader
-import ai.vigia.app.ui.components.SecurityLessonCard
 import ai.vigia.app.ui.theme.*
 
 /** Hub des Services VIGIA AI :
- * Regroupe tous les modules spécialisés et l'Académie de conseils & leçons,
+ * Regroupe les modules spécialisés et donne accès à une académie de leçons dédiée,
  * avec une hiérarchie visuelle riche sans aucun bloc blanc générique. */
 @Composable
 fun ServicesScreen(onNavigate: (String) -> Unit) {
@@ -120,38 +119,21 @@ fun ServicesScreen(onNavigate: (String) -> Unit) {
             }
         }
 
-        // ------------------------------------------------------ ACADÉMIE VIGIA (CONSEILS & LEÇONS)
+        // ------------------------------------------------------ ACADÉMIE VIGIA (ESPACE DÉDIÉ)
         Column {
             SectionHeader(
-                title = "Académie Cyber — Conseils & Leçons",
-                subtitle = "Fiches réflexes interactives pour développer votre immunité numérique"
+                title = "Apprendre",
+                subtitle = "Des leçons pratiques, réunies dans un espace dédié"
             )
             Spacer(Modifier.height(10.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SecurityLessonCard(
-                    title = "Comment démasquer une fausse offre d'emploi",
-                    category = "LEÇON EMPLOI",
-                    takeaway = "Un recruteur légitime ne vous demandera JAMAIS d'argent pour des 'frais de badge', d'uniforme ou de dossier médical avant embauche.",
-                    tips = listOf(
-                        "Méfiez-vous des adresses de contact gratuites : recrutement-total@gmail.com n'est JAMAIS une adresse officielle.",
-                        "Salaires exorbitants pour un travail simple à domicile : signal d'alarme immédiat.",
-                        "Recherchez le nom de l'entreprise sur Google accompagné du mot 'arnaque' avant de postuler."
-                    ),
-                    color = Color(0xFFD97706)
-                )
-
-                SecurityLessonCard(
-                    title = "Achat en ligne : les règles pour ne pas perdre son acompte",
-                    category = "LEÇON MARKETPLACE",
-                    takeaway = "N'envoyez JAMAIS d'acompte pour 'réserver' un véhicule, un logement ou un smartphone sans l'avoir vu en personne.",
-                    tips = listOf(
-                        "Exigez toujours une rencontre physique dans un lieu public avant tout transfert.",
-                        "Faux avis de livraison ou faux transporteur qui demande des 'frais d'assurance' remboursables : arnaque classique.",
-                        "Utilisez le paiement sécurisé intégré aux plateformes reconnues plutôt que des transferts directs non protégés."
-                    ),
-                    color = VigiaViolet
-                )
-            }
+            BentoActionCard(
+                title = "Leçons de cybersécurité",
+                subtitle = "Apprenez à repérer les faux liens, offres, annonces et demandes de paiement.",
+                icon = Icons.Rounded.School,
+                color = VigiaPrimaryBright,
+                tag = "ACADÉMIE",
+                modifier = Modifier.fillMaxWidth()
+            ) { onNavigate("lessons") }
         }
 
         // ------------------------------------------------------ SÉCURITÉ CITOYENNE & RADAR

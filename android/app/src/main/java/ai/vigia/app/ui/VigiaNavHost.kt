@@ -67,8 +67,8 @@ private val navPopExit = fadeOut(tween(NAV_ANIM_MS)) + slideOutHorizontally(twee
 private data class NavItem(val route: String, val label: String, val icon: ImageVector)
 
 // 5 onglets : Guard au centre, toujours mis en avant comme un vrai bouton d'action —
-// les outils spécialisés (Before Pay, Offres d'emploi, Annonces...) vivent maintenant
-// dans "Services" pour ne plus surcharger la barre, et "Profil" regroupe compte + conseils.
+// les outils spécialisés et l'accès à l'Académie vivent dans "Services"; le Profil reste
+// réservé au compte et aux préférences.
 private const val CENTER_INDEX = 2
 
 private val NAV_ITEMS = listOf(
@@ -342,6 +342,11 @@ fun VigiaApp(onLoggedOut: () -> Unit) {
             // Services (Before Pay, Offres d'emploi, Annonces, Communauté, Radar, Historique)
             composable("services") {
                 ServicesScreen(onNavigate = { route -> navController.navigate(route) })
+            }
+
+            // Académie — leçons de cybersécurité dans un espace séparé des outils.
+            composable("lessons") {
+                LessonsScreen(onBack = { navController.popBackStack() })
             }
 
             // Before Pay (Anti-Arnaque Transfert)

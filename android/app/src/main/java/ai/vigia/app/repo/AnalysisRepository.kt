@@ -35,7 +35,7 @@ class AnalysisRepository(
     suspend fun analyse(kind: String, content: String, useAi: Boolean): Outcome<AnalysisEntity> =
         withContext(Dispatchers.IO) {
             if (!networkAvailable()) return@withContext localOnly(kind, content)
-            runCatching { api.analyse(AnalyseRequest(kind, content, online = true, useAi = useAi, hfToken = ai.vigia.app.ServiceLocator.tokens.hfToken)) }
+            runCatching { api.analyse(AnalyseRequest(kind, content, online = true, useAi = useAi)) }
                 .fold(
                     { response ->
                         val entity = response.toEntity()
@@ -86,7 +86,7 @@ class AnalysisRepository(
         if (!networkAvailable()) return@withContext 0
         var synced = 0
         for (item in pending.all()) {
-            val ok = runCatching { api.analyse(AnalyseRequest(item.kind, item.content, hfToken = ai.vigia.app.ServiceLocator.tokens.hfToken)) }.getOrNull()
+            val ok = runCatching { api.analyse(AnalyseRequest(item.kind, item.content)) }.getOrNull()
             if (ok != null) {
                 dao.upsert(ok.toEntity())
                 pending.remove(item.id)

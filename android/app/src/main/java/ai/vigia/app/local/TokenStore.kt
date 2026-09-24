@@ -7,7 +7,7 @@ import androidx.security.crypto.MasterKey
 
 /**
  * Stockage chiffre des jetons (AES-256-GCM, cle dans le Keystore Android).
- * Les jetons de session et la clé Hugging Face de l'utilisateur sont stockés chiffrés.
+ * Seuls les jetons de session du compte sont stockés chiffrés sur l'appareil.
  */
 class TokenStore(context: Context) {
 
@@ -15,7 +15,7 @@ class TokenStore(context: Context) {
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
-        // Aucun fallback en clair : les jetons de session et la clé Hugging Face sont
+        // Aucun fallback en clair : les jetons de session sont
         // des secrets. Si le Keystore Android est indisponible, VIGIA échoue fermé
         // plutôt que de les écrire dans SharedPreferences ordinaires.
         EncryptedSharedPreferences.create(
@@ -27,6 +27,11 @@ class TokenStore(context: Context) {
         )
     }
 
+    init {
+        // Supprime l'ancien jeton HF d'une version précédente; le secret IA appartient au serveur.
+        prefs.edit().remove(LEGACY_HF_TOKEN_KEY).apply()
+    }
+
     var accessToken: String?
         get() = prefs.getString(KEY_ACCESS, null)
         set(value) = prefs.edit().putString(KEY_ACCESS, value).apply()
@@ -34,10 +39,6 @@ class TokenStore(context: Context) {
     var refreshToken: String?
         get() = prefs.getString(KEY_REFRESH, null)
         set(value) = prefs.edit().putString(KEY_REFRESH, value).apply()
-
-    var hfToken: String?
-        get() = prefs.getString(KEY_HF_TOKEN, null)
-        set(value) { if (value.isNullOrBlank()) prefs.edit().remove(KEY_HF_TOKEN).apply() else prefs.edit().putString(KEY_HF_TOKEN, value).apply() }
 
     var email: String?
         get() = prefs.getString(KEY_EMAIL, null)
@@ -68,7 +69,7 @@ class TokenStore(context: Context) {
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"
         const val KEY_EMAIL = "email"
-        const val KEY_HF_TOKEN = "hf_token"
+        const val LEGACY_HF_TOKEN_KEY = "hf_token"
         const val KEY_ONBOARDING_SEEN = "onboarding_seen"
     }
 }

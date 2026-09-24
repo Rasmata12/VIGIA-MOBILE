@@ -36,7 +36,7 @@ async def verify(
     kind = payload.kind or detect_kind(payload.content)
     record, assessment, alert_created = await run_pipeline(
         db, user, kind, payload.content, module=payload.source,
-        online=payload.online, use_ai=payload.use_ai, hf_token=payload.hf_token,
+        online=payload.online, use_ai=payload.use_ai,
     )
     return VerifyOut(
         analysis_id=record.id,

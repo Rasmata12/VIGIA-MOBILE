@@ -164,7 +164,7 @@ private fun SimpleActionCard(title: String, subtitle: String, icon: androidx.com
             Box(Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(color.copy(alpha = .10f)), contentAlignment = Alignment.Center) { Icon(icon, null, tint = color, modifier = Modifier.size(20.dp)) }
             Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) {
                 Text(title, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 12.5.sp, color = VigiaTextPrimary)
-                Text(subtitle, fontFamily = PoppinsFontFamily, fontSize = 10.5.sp, color = VigiaTextSecondary, maxLines = 2)
+                Text(subtitle, fontFamily = PoppinsFontFamily, fontSize = 10.5.sp, color = VigiaTextSecondary, lineHeight = 15.sp)
             }
             Icon(Icons.Rounded.ChevronRight, null, tint = color, modifier = Modifier.size(18.dp))
         }
@@ -238,7 +238,7 @@ fun AnalysisRow(item: AnalysisEntity, modifier: Modifier = Modifier, onClick: ()
                     color = VigiaTextPrimary
                 )
                 Spacer(Modifier.height(3.dp))
-                Text(item.preview.take(70), fontFamily = PoppinsFontFamily, fontSize = 10.5.sp, color = VigiaTextSecondary, maxLines = 2)
+                Text(item.preview, fontFamily = PoppinsFontFamily, fontSize = 10.5.sp, color = VigiaTextSecondary, lineHeight = 15.sp)
             }
             Spacer(Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.End) {

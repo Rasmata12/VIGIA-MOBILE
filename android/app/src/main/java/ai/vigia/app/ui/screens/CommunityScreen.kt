@@ -6,134 +6,86 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ai.vigia.app.ui.components.*
 import ai.vigia.app.ui.theme.*
 import ai.vigia.app.ui.vm.CommunityViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private val REPORT_CATEGORIES = listOf(
-    "emploi" to "Faux Recrutement",
-    "annonce" to "Arnaque Annonce",
-    "paiement" to "Fraude Mobile Money",
-    "phishing" to "Lien Piégé",
-    "autre" to "Autre Menace"
+    "emploi" to "Faux recrutement",
+    "annonce" to "Petite annonce",
+    "paiement" to "Paiement mobile",
+    "phishing" to "Lien piégé",
+    "autre" to "Autre menace"
 )
 
 private fun communityRiskLabel(code: String): String = when (code) {
-    "tres_signale" -> "Signalements nombreux"
-    "suspect" -> "Menace Suspecte Signalée"
-    "a_surveiller" -> "Signalement Récent à Surveiller"
-    else -> "Aucun Signalement Connu à ce Jour"
+    "tres_signale" -> "Plusieurs signalements"
+    "suspect" -> "Cible signalée comme suspecte"
+    "a_surveiller" -> "Signalement récent"
+    else -> "Aucun signalement connu"
 }
 
 private fun communityRiskColor(code: String): Color = when (code) {
-    "tres_signale" -> RiskDanger
-    "suspect" -> RiskDanger
+    "tres_signale", "suspect" -> RiskDanger
     "a_surveiller" -> RiskSuspicious
     else -> RiskSafe
 }
 
 @Composable
-fun CommunityScreen(
-    viewModel: CommunityViewModel,
-    onBack: () -> Unit
-) {
+fun CommunityScreen(viewModel: CommunityViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var tab by remember { mutableStateOf(0) } // 0 = verifier, 1 = signaler
-
-    var checkTarget by remember { mutableStateOf("") }
-    var reportTarget by remember { mutableStateOf("") }
-    var reportCategory by remember { mutableStateOf("autre") }
-    var reportDescription by remember { mutableStateOf("") }
-
-    val emeraldColor = Color(0xFF059669)
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var checkTarget by rememberSaveable { mutableStateOf("") }
+    var reportTarget by rememberSaveable { mutableStateOf("") }
+    var reportCategory by rememberSaveable { mutableStateOf("autre") }
+    var reportDescription by rememberSaveable { mutableStateOf("") }
 
     Column(
         Modifier
             .fillMaxSize()
             .background(BackgroundGradient)
             .verticalScroll(rememberScrollState())
-            .padding(20.dp)
+            .padding(horizontal = 18.dp)
             .padding(top = 16.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // En-tête de navigation
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SubtleBackButton(onBack = onBack, label = "Retour")
-            Spacer(Modifier.weight(1f))
-            InfoChip("Réseau Citoyen", emeraldColor)
-        }
+        SubtleBackButton(onBack = onBack, label = "Retour")
 
-        // Titre & Sous-titre
-        Column {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                "Protection Collective",
-                style = MaterialTheme.typography.headlineMedium,
+                "Communauté",
                 fontFamily = PoppinsFontFamily,
                 fontWeight = FontWeight.ExtraBold,
-                color = VigiaTextPrimary,
-                fontSize = 24.sp
+                fontSize = 25.sp,
+                color = VigiaTextPrimary
             )
-            Spacer(Modifier.height(4.dp))
             Text(
-                "Signalez les numéros frauduleux et protégez l'ensemble de la communauté.",
+                "Vérifiez une cible ou partagez un signalement utile.",
                 fontFamily = PoppinsFontFamily,
-                color = VigiaTextSecondary,
-                fontSize = 13.sp
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                color = VigiaTextSecondary
             )
         }
 
-        // HÉROS — Impact de la vigilance partagée
-        HeroSurface(orbColors = listOf(emeraldColor, VigiaPrimary), cornerRadius = 20.dp) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconBadge(icon = Icons.Rounded.Groups, tint = emeraldColor, size = 40.dp, iconSize = 20.dp)
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(
-                        "Bouclier d'immunité collective",
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = PoppinsFontFamily,
-                        color = emeraldColor,
-                        fontSize = 14.sp
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        "Un signalement est agrégé avec ceux d'autres utilisateurs et peut devenir un signal supplémentaire dans les analyses VIGIA.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontFamily = PoppinsFontFamily,
-                        color = VigiaTextSecondary,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
-                    )
-                }
-            }
-        }
-
-        // Onglets Luxe Vérifier / Signaler
-        GlassCard(
-            cornerRadius = 18.dp,
-            contentPadding = PaddingValues(6.dp)
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+        GlassCard(cornerRadius = 16.dp, contentPadding = PaddingValues(5.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                 CommunityTabButton(
-                    label = "Interroger la base",
+                    label = "Vérifier",
                     icon = Icons.Rounded.Search,
                     selected = tab == 0,
                     modifier = Modifier.weight(1f)
@@ -142,7 +94,7 @@ fun CommunityScreen(
                     viewModel.reset()
                 }
                 CommunityTabButton(
-                    label = "Signaler une menace",
+                    label = "Signaler",
                     icon = Icons.Rounded.Flag,
                     selected = tab == 1,
                     modifier = Modifier.weight(1f)
@@ -154,63 +106,36 @@ fun CommunityScreen(
         }
 
         if (tab == 0) {
-            // TAB 0 : VÉRIFIER
-            GlassCard(
-                backgroundColor = Color.White,
-                borderColor = VigiaBorder,
-                cornerRadius = 24.dp
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconBadge(icon = Icons.Rounded.TravelExplore, tint = VigiaPrimary, size = 36.dp, iconSize = 18.dp)
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            "Vérifier un contact ou lien",
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = PoppinsFontFamily,
-                            color = VigiaTextPrimary,
-                            fontSize = 15.sp
-                        )
-                    }
-                    TextButton(onClick = {
-                        checkTarget = "+225 07 88 99 00"
-                    }) {
-                        Text(
-                            "Exemple",
-                            fontFamily = PoppinsFontFamily,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = VigiaPrimary
-                        )
-                    }
+            GlassCard(backgroundColor = Color.White, borderColor = VigiaBorder, cornerRadius = 20.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(Icons.Rounded.TravelExplore, VigiaPrimary, size = 38.dp, iconSize = 20.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "Vérifier une cible",
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        color = VigiaTextPrimary,
+                        fontSize = 16.sp
+                    )
                 }
-
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Saisissez un numéro de téléphone, un domaine ou une URL pour consulter les signalements communautaires connus.",
+                    "Recherchez un numéro, un domaine ou un lien dans les signalements reçus.",
                     fontFamily = PoppinsFontFamily,
                     color = VigiaTextSecondary,
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp
+                    fontSize = 12.5.sp,
+                    lineHeight = 18.sp
                 )
-
                 Spacer(Modifier.height(14.dp))
-
                 VigiaField(
                     value = checkTarget,
                     onValueChange = { checkTarget = it },
-                    label = "Numéro, domaine ou URL suspecte",
-                    supporting = "Ex: +225 07..., 05..., ou https://..."
+                    label = "Numéro, domaine ou URL",
+                    supporting = "Exemple : +225 07… ou https://site-exemple.com"
                 )
-
-                Spacer(Modifier.height(18.dp))
-
+                Spacer(Modifier.height(14.dp))
                 GradientButton(
-                    text = "Interroger le registre communautaire",
+                    text = "Vérifier cette cible",
                     onClick = { viewModel.check(checkTarget) },
                     loading = state.loading,
                     enabled = checkTarget.isNotBlank(),
@@ -219,195 +144,191 @@ fun CommunityScreen(
                 )
             }
 
-            state.checkResult?.let { res ->
-                val riskColor = communityRiskColor(res.riskFromReports)
-                GlassCard(
-                    backgroundColor = Color.White,
-                    borderColor = riskColor.copy(alpha = 0.35f),
-                    cornerRadius = 24.dp
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+            state.checkResult?.let { result ->
+                val risk = communityRiskColor(result.riskFromReports)
+                GlassCard(backgroundColor = Color.White, borderColor = risk.copy(alpha = 0.35f), cornerRadius = 20.dp) {
+                    Row(verticalAlignment = Alignment.Top) {
                         IconBadge(
-                            icon = if (res.reporters > 0) Icons.Rounded.ReportProblem else Icons.Rounded.CheckCircle,
-                            tint = riskColor,
-                            size = 44.dp,
-                            iconSize = 22.dp
+                            if (result.reporters > 0) Icons.Rounded.ReportProblem else Icons.Rounded.CheckCircle,
+                            risk,
+                            size = 40.dp,
+                            iconSize = 21.dp
                         )
-                        Spacer(Modifier.width(14.dp))
-                        Column {
+                        Spacer(Modifier.width(11.dp))
+                        Column(Modifier.weight(1f)) {
                             Text(
-                                communityRiskLabel(res.riskFromReports),
-                                fontWeight = FontWeight.ExtraBold,
+                                communityRiskLabel(result.riskFromReports),
                                 fontFamily = PoppinsFontFamily,
-                                color = riskColor,
-                                fontSize = 14.5.sp
+                                fontWeight = FontWeight.ExtraBold,
+                                color = risk,
+                                fontSize = 14.sp,
+                                lineHeight = 19.sp
                             )
-                            Spacer(Modifier.height(3.dp))
+                            Spacer(Modifier.height(4.dp))
                             Text(
-                                if (res.reporters > 0)
-                                    "${res.reporters} citoyen(s) ont formellement signalé cette cible"
-                                else
-                                    "Aucune plainte enregistrée à ce jour dans la base",
+                                if (result.reporters > 0) "${result.reporters} utilisateur(s) ont signalé cette cible."
+                                else "Aucun signalement communautaire trouvé pour cette cible.",
                                 fontFamily = PoppinsFontFamily,
                                 color = VigiaTextSecondary,
-                                fontSize = 12.sp
+                                fontSize = 12.sp,
+                                lineHeight = 17.sp
                             )
                         }
                     }
-
-                    if (res.byCategory.isNotEmpty()) {
+                    if (result.byCategory.isNotEmpty()) {
                         Spacer(Modifier.height(14.dp))
                         Text(
-                            "Répartition des signalements :",
+                            "Catégories signalées",
                             fontFamily = PoppinsFontFamily,
                             fontWeight = FontWeight.SemiBold,
                             color = VigiaTextPrimary,
                             fontSize = 12.5.sp
                         )
-                        Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            res.byCategory.forEach { (cat, count) ->
-                                InfoChip("$cat : $count", riskColor)
+                        Spacer(Modifier.height(7.dp))
+                        result.byCategory.entries.toList().chunked(2).forEach { pair ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                pair.forEach { (category, count) ->
+                                    Text(
+                                        "$category · $count",
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(risk.copy(alpha = 0.08f))
+                                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                                        fontFamily = PoppinsFontFamily,
+                                        color = risk,
+                                        fontSize = 11.5.sp,
+                                        lineHeight = 16.sp
+                                    )
+                                }
+                                if (pair.size == 1) Spacer(Modifier.weight(1f))
+                            }
+                            Spacer(Modifier.height(6.dp))
+                        }
+                    }
+                }
+            }
+
+            state.trending?.items?.takeIf { it.isNotEmpty() }?.let { items ->
+                SectionHeader(
+                    title = "Signalements récents",
+                    subtitle = "Plusieurs utilisateurs ont signalé ces cibles. Un signalement n’est pas une preuve."
+                )
+                items.forEach { item ->
+                    GlassCard(backgroundColor = Color.White, borderColor = VigiaBorder, contentPadding = PaddingValues(12.dp)) {
+                        Row(verticalAlignment = Alignment.Top) {
+                            IconBadge(Icons.Rounded.ReportProblem, RiskDanger, size = 34.dp, iconSize = 18.dp)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    item.targetKey,
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.5.sp,
+                                    color = VigiaTextPrimary,
+                                    lineHeight = 17.sp
+                                )
+                                Spacer(Modifier.height(3.dp))
+                                Text(
+                                    "${item.reporters} signalant(s) · ${item.topCategory}",
+                                    fontFamily = PoppinsFontFamily,
+                                    fontSize = 11.5.sp,
+                                    color = VigiaTextSecondary,
+                                    lineHeight = 16.sp
+                                )
                             }
                         }
                     }
                 }
             }
         } else {
-            // TAB 1 : SIGNALER
-            GlassCard(
-                backgroundColor = Color.White,
-                borderColor = RiskDanger.copy(alpha = 0.35f),
-                cornerRadius = 24.dp
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconBadge(icon = Icons.Rounded.NotificationImportant, tint = RiskDanger, size = 36.dp, iconSize = 18.dp)
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            "Dénoncer une tentative",
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = PoppinsFontFamily,
-                            color = VigiaTextPrimary,
-                            fontSize = 15.sp
-                        )
-                    }
-                    TextButton(onClick = {
-                        reportTarget = "+225 05 12 34 56"
-                        reportCategory = "paiement"
-                        reportDescription = "M'a appelé en se faisant passer pour un agent Wave demandant l'annulation d'un transfert frauduleux pour obtenir mon code secret."
-                    }) {
-                        Text(
-                            "Exemple type",
-                            fontFamily = PoppinsFontFamily,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = RiskDanger
-                        )
-                    }
+            GlassCard(backgroundColor = Color.White, borderColor = RiskDanger.copy(alpha = 0.25f), cornerRadius = 20.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(Icons.Rounded.Flag, RiskDanger, size = 38.dp, iconSize = 20.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "Signaler une tentative",
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        color = VigiaTextPrimary,
+                        fontSize = 16.sp
+                    )
                 }
-
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    "Votre signalement est confidentiel. Une même cible ne peut être comptée qu’une fois par utilisateur.",
+                    "Indiquez une cible et choisissez le type de fraude observé.",
                     fontFamily = PoppinsFontFamily,
                     color = VigiaTextSecondary,
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp
+                    fontSize = 12.5.sp,
+                    lineHeight = 18.sp
                 )
-
-                Spacer(Modifier.height(14.dp))
-
+                TextButton(
+                    onClick = {
+                        reportTarget = "+225 05 12 34 56"
+                        reportCategory = "paiement"
+                        reportDescription = "Un appelant se faisait passer pour un agent Mobile Money et demandait mon code secret."
+                    },
+                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)
+                ) {
+                    Text("Remplir un exemple", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold)
+                }
                 VigiaField(
                     value = reportTarget,
                     onValueChange = { reportTarget = it },
-                    label = "Numéro de téléphone, domaine ou URL à signaler",
-                    supporting = "Ex: +225 07... ou https://login-faux..."
+                    label = "Numéro, domaine ou URL",
+                    supporting = "Ne publiez pas d’information personnelle."
                 )
-
                 Spacer(Modifier.height(12.dp))
-
                 Text(
-                    "Nature de l'escroquerie",
+                    "Type de fraude",
                     fontFamily = PoppinsFontFamily,
                     fontSize = 12.5.sp,
                     color = VigiaTextPrimary,
                     fontWeight = FontWeight.SemiBold
                 )
-                Spacer(Modifier.height(8.dp))
-
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        REPORT_CATEGORIES.take(2).forEach { (key, label) ->
+                Spacer(Modifier.height(7.dp))
+                REPORT_CATEGORIES.chunked(2).forEach { pair ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        pair.forEach { (key, label) ->
                             val selected = reportCategory == key
                             FilterChip(
                                 selected = selected,
                                 onClick = { reportCategory = key },
+                                modifier = Modifier.weight(1f),
                                 label = {
                                     Text(
                                         label,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Center,
                                         fontFamily = PoppinsFontFamily,
                                         fontSize = 11.5.sp,
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                        lineHeight = 15.sp
                                     )
                                 },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = RiskDanger,
+                                    selectedContainerColor = VigiaPrimary,
                                     selectedLabelColor = Color.White,
                                     containerColor = VigiaSurfaceHigh,
                                     labelColor = VigiaTextSecondary
                                 )
                             )
                         }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        REPORT_CATEGORIES.drop(2).forEach { (key, label) ->
-                            val selected = reportCategory == key
-                            FilterChip(
-                                selected = selected,
-                                onClick = { reportCategory = key },
-                                label = {
-                                    Text(
-                                        label,
-                                        fontFamily = PoppinsFontFamily,
-                                        fontSize = 11.5.sp,
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                                    )
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = RiskDanger,
-                                    selectedLabelColor = Color.White,
-                                    containerColor = VigiaSurfaceHigh,
-                                    labelColor = VigiaTextSecondary
-                                )
-                            )
-                        }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
-
-                Spacer(Modifier.height(12.dp))
-
+                Spacer(Modifier.height(10.dp))
                 VigiaField(
                     value = reportDescription,
                     onValueChange = { reportDescription = it },
-                    label = "Détails de l'approche (optionnel)",
+                    label = "Que s’est-il passé ? (facultatif)",
                     minLines = 3,
                     singleLine = false,
-                    supporting = "Décrivez le mode opératoire (ne partagez aucune donnée personnelle)"
+                    supporting = "Décrivez les faits sans ajouter de données bancaires ou privées."
                 )
-
-                Spacer(Modifier.height(18.dp))
-
+                Spacer(Modifier.height(14.dp))
                 GradientButton(
                     text = "Envoyer le signalement",
                     onClick = { viewModel.report(reportTarget, reportCategory, reportDescription) },
@@ -420,26 +341,22 @@ fun CommunityScreen(
             }
 
             if (state.reportSent && state.reportResult != null) {
-                val res = state.reportResult!!
-                GlassCard(
-                    backgroundColor = Color.White,
-                    borderColor = RiskSafe.copy(alpha = 0.35f),
-                    cornerRadius = 24.dp
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconBadge(icon = Icons.Rounded.VerifiedUser, tint = RiskSafe, size = 44.dp, iconSize = 22.dp)
-                        Spacer(Modifier.width(14.dp))
-                        Column {
+                val result = state.reportResult!!
+                GlassCard(backgroundColor = Color.White, borderColor = RiskSafe.copy(alpha = 0.35f), cornerRadius = 20.dp) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        IconBadge(Icons.Rounded.VerifiedUser, RiskSafe, size = 38.dp, iconSize = 20.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
                             Text(
-                                "Signalement Enregistré avec Succès",
-                                fontWeight = FontWeight.ExtraBold,
+                                "Signalement enregistré",
                                 fontFamily = PoppinsFontFamily,
+                                fontWeight = FontWeight.Bold,
                                 color = RiskSafe,
-                                fontSize = 14.5.sp
+                                fontSize = 14.sp
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                "Cette cible compte maintenant ${res.communityReporters} signalement(s) provenant d’utilisateurs distincts. Ce signal est pris en compte dans les analyses VIGIA.",
+                                "Cette cible compte ${result.communityReporters} signalement(s) d’utilisateurs distincts.",
                                 fontFamily = PoppinsFontFamily,
                                 color = VigiaTextSecondary,
                                 fontSize = 12.sp,
@@ -451,50 +368,18 @@ fun CommunityScreen(
             }
         }
 
-        state.trending?.let { trend ->
-            if (trend.items.isNotEmpty()) {
-                SectionHeader("Cibles récemment signalées", "Cibles avec au moins deux signalants distincts sur les 30 derniers jours — ce n'est pas une preuve à elle seule.")
-                trend.items.forEach { item ->
-                    GlassCard(backgroundColor = Color.White, borderColor = VigiaBorder, contentPadding = PaddingValues(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconBadge(Icons.Rounded.ReportProblem, RiskDanger, size = 36.dp, iconSize = 18.dp)
-                            Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(item.targetKey, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp, color = VigiaTextPrimary, softWrap = true)
-                                Text("${item.reporters} signalants • ${item.topCategory}", fontFamily = PoppinsFontFamily, fontSize = 11.sp, color = VigiaTextSecondary)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Charte citoyenne
-        GlassCard(
-            backgroundColor = Color.White,
-            borderColor = VigiaSecondary.copy(alpha = 0.35f),
-            cornerRadius = 24.dp
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconBadge(icon = Icons.Rounded.SecurityUpdateGood, tint = VigiaSecondary, size = 36.dp, iconSize = 18.dp)
-                Spacer(Modifier.width(12.dp))
+        GlassCard(backgroundColor = Color.White, borderColor = VigiaBorder, contentPadding = PaddingValues(12.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Icon(Icons.Rounded.Info, contentDescription = null, tint = VigiaPrimary, modifier = Modifier.padding(top = 1.dp))
+                Spacer(Modifier.width(9.dp))
                 Text(
-                    "Charte de Signalement Responsable",
-                    fontWeight = FontWeight.Bold,
+                    "Les signalements sont des indices, pas des preuves. Signalez uniquement des faits observés et ne publiez aucune information bancaire ou personnelle.",
                     fontFamily = PoppinsFontFamily,
-                    color = VigiaSecondary,
-                    fontSize = 14.sp
+                    color = VigiaTextSecondary,
+                    fontSize = 11.5.sp,
+                    lineHeight = 16.sp
                 )
             }
-            Spacer(Modifier.height(10.dp))
-            Text(
-                "Un signalement communautaire est un indice, pas une preuve absolue. Signalez uniquement une tentative réellement observée et ne publiez jamais de données bancaires ou personnelles.",
-                style = MaterialTheme.typography.bodyMedium,
-                fontFamily = PoppinsFontFamily,
-                color = VigiaTextSecondary,
-                fontSize = 12.sp,
-                lineHeight = 17.sp
-            )
         }
 
         state.error?.let { ErrorBanner(it) }
@@ -509,26 +394,24 @@ private fun CommunityTabButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val bg = if (selected) VigiaPrimary else Color.Transparent
-    val fg = if (selected) Color.White else VigiaTextSecondary
-    Box(
+    val foreground = if (selected) Color.White else VigiaTextSecondary
+    Row(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(bg)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) VigiaPrimary else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(17.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(
-                label,
-                color = fg,
-                fontFamily = PoppinsFontFamily,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                fontSize = 12.5.sp
-            )
-        }
+        Icon(icon, contentDescription = null, tint = foreground, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(
+            label,
+            color = foreground,
+            fontFamily = PoppinsFontFamily,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            fontSize = 13.sp
+        )
     }
 }

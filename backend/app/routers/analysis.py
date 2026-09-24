@@ -34,7 +34,7 @@ async def create_analysis(
     rate_limit(db, f"analyse:{user.id}", limit=120, window_seconds=3600)
     record, _assessment, _alert = await run_pipeline(
         db, user, payload.kind, payload.content, module="verify",
-        online=payload.online, use_ai=payload.use_ai, hf_token=payload.hf_token,
+        online=payload.online, use_ai=payload.use_ai,
     )
     return _to_out(record)
 

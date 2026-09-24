@@ -43,7 +43,6 @@ class AnalyseIn(BaseModel):
     content: str = Field(min_length=1, max_length=20000)
     online: bool = True
     use_ai: bool = True
-    hf_token: str | None = Field(default=None, max_length=500)
 
 
 class SignalOut(BaseModel):
@@ -147,7 +146,6 @@ class VerifyIn(BaseModel):
     source: str = Field(default="verify", pattern="^(verify|qr|share|guard|before_pay)$")
     online: bool = True
     use_ai: bool = True
-    hf_token: str | None = Field(default=None, max_length=500)
 
 
 class ScamDnaOut(BaseModel):
@@ -191,7 +189,6 @@ class GuardEventIn(BaseModel):
     text: str = Field(max_length=6000)
     posted_at: datetime | None = None
     analyse: bool = True
-    hf_token: str | None = Field(default=None, max_length=500)
 
 
 class GuardStatusIn(BaseModel):

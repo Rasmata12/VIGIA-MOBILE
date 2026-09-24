@@ -86,7 +86,7 @@ class VigiaNotificationListener : NotificationListenerService() {
         scope.launch {
             runCatching {
                 val response = ServiceLocator.api.guardEvent(
-                    GuardEventRequest(packageName = notification.packageName, title = title, text = text, hfToken = ServiceLocator.tokens.hfToken)
+                    GuardEventRequest(packageName = notification.packageName, title = title, text = text)
                 )
                 val body = response.body()
                 if (response.isSuccessful && body != null) {

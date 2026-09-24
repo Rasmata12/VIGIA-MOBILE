@@ -633,7 +633,7 @@ private fun MediaAnalyzePanel() {
         GlassCard(backgroundColor = Color.White, borderColor = VigiaBorder, cornerRadius = 18.dp) {
             Text("Analyse visuelle", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = VigiaTextPrimary)
             Spacer(Modifier.height(4.dp))
-            Text("Ajoutez une photo ou une vidéo. VIGIA extrait les éléments visibles et les fait examiner par un modèle vision Hugging Face.", fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = VigiaTextSecondary, lineHeight = 17.sp)
+            Text("Ajoutez une photo ou une vidéo. Elle sera analysée par le moteur vision configuré sur le serveur VIGIA.", fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = VigiaTextSecondary, lineHeight = 17.sp)
             Spacer(Modifier.height(12.dp))
             OutlinedButton(onClick = { launcher.launch(arrayOf("image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/3gpp")) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                 Icon(Icons.Rounded.UploadFile, null); Spacer(Modifier.width(8.dp)); Text("Choisir une photo ou une vidéo", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold)
@@ -702,15 +702,11 @@ private suspend fun uploadMediaForAnalysis(context: android.content.Context, uri
     val parts = frameFiles.mapIndexed { index, file ->
         MultipartBody.Part.createFormData("frames", "frame_$index.jpg", file.asRequestBody("image/jpeg".toMediaTypeOrNull()))
     }
-    val token = ServiceLocator.tokens.hfToken?.trim()?.takeIf { it.isNotBlank() }
-    require(token != null) { "Ajoute une clé Hugging Face dans Profil pour activer l'analyse photo/vidéo." }
-    val tokenBody = token.toRequestBody("text/plain".toMediaTypeOrNull())
     return try {
         ServiceLocator.api.analyzeMedia(
             parts,
             type.toRequestBody("text/plain".toMediaTypeOrNull()),
-            "vigia-media.$type".toRequestBody("text/plain".toMediaTypeOrNull()),
-            tokenBody
+            "vigia-media.$type".toRequestBody("text/plain".toMediaTypeOrNull())
         )
     } finally {
         frameFiles.forEach { it.delete() }

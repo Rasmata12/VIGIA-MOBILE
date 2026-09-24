@@ -24,7 +24,6 @@ async def analyze_media(
     frames: list[UploadFile] = File(...),
     media_type: str = Form(...),
     filename: str = Form(default="media"),
-    hf_token: str | None = Form(default=None),
     user = Depends(current_user),
     db: Session = Depends(get_db),
 ):
@@ -48,7 +47,7 @@ async def analyze_media(
         packed.append((data, mime))
     started = time.perf_counter()
     try:
-        result = await ai_engine.analyse_media(packed, media_type, filename[:160], hf_token)
+        result = await ai_engine.analyse_media(packed, media_type, filename[:160])
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc))
     except RuntimeError as exc:

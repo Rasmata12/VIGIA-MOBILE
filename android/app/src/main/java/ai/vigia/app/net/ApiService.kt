@@ -40,8 +40,7 @@ interface ApiService {
     suspend fun analyzeMedia(
         @Part frames: List<okhttp3.MultipartBody.Part>,
         @Part("media_type") mediaType: okhttp3.RequestBody,
-        @Part("filename") filename: okhttp3.RequestBody,
-        @Part("hf_token") hfToken: okhttp3.RequestBody?
+        @Part("filename") filename: okhttp3.RequestBody
     ): MediaAnalysisResponse
 
     @GET("analyses/{id}")

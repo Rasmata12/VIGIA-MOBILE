@@ -537,8 +537,7 @@ fun StatTile(
             fontFamily = PoppinsFontFamily,
             fontWeight = FontWeight.SemiBold,
             color = VigiaTextPrimary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            lineHeight = 16.sp
         )
         if (subtitle != null) {
             Spacer(Modifier.height(2.dp))
@@ -547,8 +546,7 @@ fun StatTile(
                 fontSize = 10.5.sp,
                 fontFamily = PoppinsFontFamily,
                 color = VigiaTextSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                lineHeight = 14.sp
             )
         }
     }
@@ -1012,8 +1010,7 @@ fun BentoActionCard(
                     fontWeight = FontWeight.Bold,
                     color = VigiaTextPrimary,
                     fontSize = if (featured) 17.5.sp else 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    lineHeight = if (featured) 22.sp else 19.sp
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -1021,9 +1018,7 @@ fun BentoActionCard(
                     fontFamily = PoppinsFontFamily,
                     fontSize = if (featured) 12.5.sp else 11.5.sp,
                     color = VigiaTextSecondary,
-                    lineHeight = if (featured) 18.sp else 16.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    lineHeight = if (featured) 18.sp else 16.sp
                 )
                 if (featured) {
                     Spacer(Modifier.height(14.dp))
@@ -1327,9 +1322,7 @@ fun SecurityLessonCard(
             fontFamily = PoppinsFontFamily,
             fontSize = 12.5.sp,
             color = VigiaTextSecondary,
-            lineHeight = 17.sp,
-            maxLines = if (expanded) Int.MAX_VALUE else 3,
-            overflow = TextOverflow.Ellipsis
+            lineHeight = 18.sp
         )
         AnimatedVisibility(
             visible = expanded,

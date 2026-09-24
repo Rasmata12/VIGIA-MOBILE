@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     oc_api_key: str = ""
     oc_model: str = ""
 
-    # Hugging Face Inference Providers (token optionnel, idealement fourni par requete depuis l'app)
+    # Hugging Face Inference Providers — le jeton reste exclusivement côté serveur.
     hf_token: str = ""
     hf_model: str = "openai/gpt-oss-120b:fastest"
     hf_vision_model: str = "Qwen/Qwen2.5-VL-3B-Instruct"
@@ -75,6 +75,8 @@ class Settings(BaseSettings):
             return f"modele local ({self.ollama_model} via Ollama, sur le serveur, rien n'est envoye a un tiers)"
         if provider == "openai_compatible":
             return f"{self.oc_model} (API compatible OpenAI configuree en {self.oc_base_url})"
+        if provider == "huggingface":
+            return f"{self.hf_model} (Hugging Face Inference Providers, configuré sur le serveur)"
         return "aucune (heuristique seule)"
 
     @property

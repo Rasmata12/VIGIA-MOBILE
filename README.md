@@ -31,6 +31,9 @@ Ce paquet réunit :
   production utilise le backend HTTPS ci-dessus; aucune autre adresse n'est autorisée par le code.
 - Aucun autre client HTTP, aucune autre base URL, aucun SDK tiers d'analyse n'est présent dans
   le code : tout passe par `ApiService` / `HttpClient.kt` vers cette unique API.
+- Le jeton Hugging Face est configuré uniquement dans l'environnement du backend (`VIGIA_HF_TOKEN`).
+  L'application mobile ne le stocke plus et ne l'envoie jamais; la mise à jour efface aussi une
+  ancienne copie chiffrée sur le téléphone.
 
 ## Lancer le tout en local
 

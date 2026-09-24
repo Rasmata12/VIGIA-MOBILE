@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     # Hugging Face Inference Providers — le jeton reste exclusivement côté serveur.
     hf_token: str = ""
     hf_model: str = "openai/gpt-oss-120b:fastest"
-    hf_vision_model: str = "Qwen/Qwen2.5-VL-3B-Instruct"
+    hf_vision_model: str = "inclusionAI/Ling-3.0-flash-VL:deepinfra"
     hf_base_url: str = "https://router.huggingface.co/v1"
 
     ai_request_timeout: float = 60.0

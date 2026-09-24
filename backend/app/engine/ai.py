@@ -342,7 +342,12 @@ async def enrich(kind: str, content: str, base: EngineResult) -> EngineResult:
         base.signals.append(Signal("ai_indicator", indicator, 0, category="ia"))
     for action in actions:
         base.signals.append(Signal("ai_action", action, 0, category="recommandation"))
-    label = _settings.ollama_model if provider == "ollama" else _settings.oc_model
+    if provider == "ollama":
+        label = _settings.ollama_model
+    elif provider == "huggingface":
+        label = _settings.hf_model
+    else:
+        label = _settings.oc_model
     base.sources.append({"name": "Analyse IA", "status": "ok", "detail": f"{label} (score IA {ai_score})"})
     base.extracted["ai"] = {"score": ai_score, "indicators": indicators, "actions": actions}
     return base

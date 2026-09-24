@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
+import retrofit2.HttpException
 import ai.vigia.app.net.BeforePayRequest
 import ai.vigia.app.net.BeforePayResponse
 import ai.vigia.app.net.GuardStatusRequest
@@ -33,6 +34,7 @@ import ai.vigia.app.net.PrivacySummaryDto
 import ai.vigia.app.net.DeviceDto
 import ai.vigia.app.guard.GuardPreferences
 import ai.vigia.app.guard.PermissionCenter
+
 import ai.vigia.app.guard.VigiaNotificationListener
 import ai.vigia.app.net.JobOfferRequest
 import ai.vigia.app.net.JobOfferResponse
@@ -42,6 +44,16 @@ import ai.vigia.app.net.CommunityReportRequest
 import ai.vigia.app.net.CommunityReportResponse
 import ai.vigia.app.net.CommunityCheckResponse
 import ai.vigia.app.net.CommunityTrendingResponse
+
+private fun Throwable.apiErrorMessage(fallback: String): String {
+    val httpError = this as? HttpException ?: return message?.takeIf(String::isNotBlank) ?: fallback
+    val detail = runCatching {
+        httpError.response()?.errorBody()?.string()?.let { body ->
+            ApiFactory.json.decodeFromString(ai.vigia.app.net.ApiError.serializer(), body).detail
+        }
+    }.getOrNull()?.takeIf(String::isNotBlank)
+    return detail ?: "Erreur HTTP ${httpError.code()}. $fallback"
+}
 
 fun parseSignals(json: String): List<SignalDto> =
     runCatching { ApiFactory.json.decodeFromString(ListSerializer(SignalDto.serializer()), json) }.getOrDefault(emptyList())
@@ -323,7 +335,7 @@ class BeforePayViewModel : ViewModel() {
             }.onSuccess { response ->
                 _state.value = BeforePayUiState(result = response)
             }.onFailure { err ->
-                _state.value = BeforePayUiState(error = err.message ?: "Erreur lors de la vérification du paiement.")
+                _state.value = BeforePayUiState(error = err.apiErrorMessage("Verifie les informations et reessaie."))
             }
         }
     }
@@ -601,7 +613,7 @@ class JobOfferViewModel : ViewModel() {
                     )
                 )
             }.onSuccess { _state.value = JobOfferUiState(result = it) }
-                .onFailure { _state.value = JobOfferUiState(error = it.message ?: "Erreur réseau. Réessaie.") }
+                .onFailure { _state.value = JobOfferUiState(error = it.apiErrorMessage("Reessaie.")) }
         }
     }
 
@@ -647,7 +659,7 @@ class ListingViewModel : ViewModel() {
                     )
                 )
             }.onSuccess { _state.value = ListingUiState(result = it) }
-                .onFailure { _state.value = ListingUiState(error = it.message ?: "Erreur réseau. Réessaie.") }
+                .onFailure { _state.value = ListingUiState(error = it.apiErrorMessage("Reessaie.")) }
         }
     }
 
@@ -688,7 +700,7 @@ class CommunityViewModel : ViewModel() {
         viewModelScope.launch {
             runCatching { api.checkCommunity(target.trim()) }
                 .onSuccess { _state.value = _state.value.copy(loading = false, checkResult = it) }
-                .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Erreur réseau. Réessaie.") }
+                .onFailure { _state.value = _state.value.copy(loading = false, error = it.apiErrorMessage("Reessaie.")) }
         }
     }
 
@@ -705,7 +717,7 @@ class CommunityViewModel : ViewModel() {
                 _state.value = _state.value.copy(loading = false, reportResult = it, reportSent = true)
                 refreshTrending()
             }.onFailure {
-                _state.value = _state.value.copy(loading = false, error = it.message ?: "Erreur réseau. Réessaie.")
+                _state.value = _state.value.copy(loading = false, error = it.apiErrorMessage("Reessaie."))
             }
         }
     }

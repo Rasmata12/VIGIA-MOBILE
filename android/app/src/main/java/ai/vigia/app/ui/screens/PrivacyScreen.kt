@@ -200,10 +200,12 @@ fun PrivacyScreen(
             }
 
             // Actions de souveraineté
-            SectionHeader("Droits et Souveraineté")
+            SectionHeader("Droits et donn\u00e9es")
+
+            Text("Gardez une copie de vos r\u00e9glages et de votre historique des analyses.", fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = VigiaTextSecondary, lineHeight = 18.sp)
 
             GradientButton(
-                text = if (state.exporting) "Exportation en cours…" else "Exporter mes données (JSON RGPD)",
+                text = if (state.exporting) "Exportation en cours…" else "T\u00e9l\u00e9charger mes donn\u00e9es",
                 onClick = { viewModel.exportData(context) },
                 enabled = !state.exporting,
                 loading = state.exporting,

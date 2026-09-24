@@ -85,7 +85,7 @@ fun AuthScreen(viewModel: AuthViewModel, onAuthenticated: () -> Unit) {
                     .border(1.dp, VigiaBorderSubtle, RoundedCornerShape(32.dp))
             ) {
                 Image(
-                    painter = painterResource(R.drawable.vigia_logo),
+                    painter = painterResource(R.drawable.vigia_logo_mark),
                     contentDescription = "VIGIA AI Logo",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
@@ -230,26 +230,6 @@ fun AuthScreen(viewModel: AuthViewModel, onAuthenticated: () -> Unit) {
                     icon = if (isRegister) Icons.Rounded.PersonAdd else Icons.Rounded.LockOpen,
                     modifier = Modifier.fillMaxWidth()
                 )
-            }
-
-            Spacer(Modifier.height(22.dp))
-
-            // Raccourci découverte invité
-            TextButton(
-                onClick = onAuthenticated,
-                colors = ButtonDefaults.textButtonColors(contentColor = VigiaPrimary)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "Explorer sans compte (Mode Essai)",
-                        fontFamily = PoppinsFontFamily,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = VigiaPrimary
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Icon(Icons.Rounded.ArrowForward, contentDescription = null, modifier = Modifier.size(15.dp))
-                }
             }
 
             Spacer(Modifier.height(12.dp))

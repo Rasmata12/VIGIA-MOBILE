@@ -11,9 +11,9 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -45,7 +45,6 @@ import ai.vigia.app.ui.components.*
 import ai.vigia.app.ui.theme.*
 import ai.vigia.app.ui.vm.AnalyzeViewModel
 import ai.vigia.app.ui.vm.parseSignals
-import ai.vigia.app.ui.vm.parseSources
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
@@ -302,291 +301,81 @@ fun AnalyzeScreen(
         }
 
         state.result?.let { result ->
-            SectionHeader("Rapport Forensique Complet")
+            SectionHeader("R\u00e9sultat")
             ResultSection(result, offline = state.offline)
         }
     }
 }
 
-private fun parseTechnical(json: String): Map<String, JsonElement> = runCatching {
-    ai.vigia.app.net.ApiFactory.json.decodeFromString<Map<String, JsonElement>>(json)
-}.getOrDefault(emptyMap())
-
-private fun JsonElement.toDisplayString(): String = when (this) {
-    is JsonPrimitive -> this.content
-    else -> toString()
-}
-
 @Composable
 fun ResultSection(result: AnalysisEntity, offline: Boolean) {
-    val signals = remember(result.id) { parseSignals(result.signalsJson) }
-    val sources = remember(result.id) { parseSources(result.sourcesJson) }
-    val technical = remember(result.id) { parseTechnical(result.technicalJson) }
-    val indicators = signals.filter { it.weight > 0 && it.code != "ai_action" }.sortedByDescending { it.weight }
-    val actions = signals.filter { it.code == "ai_action" }
-    val reassuring = signals.filter { it.weight < 0 }
+    val keySignals = remember(result.id) {
+        parseSignals(result.signalsJson)
+            .filter { it.weight > 0 && it.code != "ai_action" }
+            .sortedByDescending { it.weight }
+            .take(3)
+    }
+    val firstAction = remember(result.id) {
+        parseSignals(result.signalsJson).firstOrNull { it.code == "ai_action" }?.label
+    }
     val color = riskColor(result.level)
 
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        // Carte verdict avec jauge centrale de luxe
-        GlassCard(
-            modifier = Modifier.fillMaxWidth(),
-            borderBrush = when (result.level) {
-                "dangerous" -> DangerBorderGradient
-                "safe" -> SafeBorderGradient
-                else -> luxuryBorderGradient(color)
-            },
-            backgroundBrush = luxuryCardGradient(color),
-            cornerRadius = 24.dp
-        ) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                RiskGauge(result.score, result.level, size = 180.dp)
-            }
-            Spacer(Modifier.height(14.dp))
-            Text(
-                text = result.summary,
-                style = MaterialTheme.typography.bodyLarge,
-                fontFamily = PoppinsFontFamily,
-                fontWeight = FontWeight.SemiBold,
-                color = VigiaTextPrimary,
-                fontSize = 14.5.sp,
-                lineHeight = 21.sp
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        borderColor = color.copy(alpha = 0.45f),
+        backgroundBrush = luxuryCardGradient(color),
+        cornerRadius = 22.dp,
+        contentPadding = PaddingValues(18.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(
+                icon = when (result.level) {
+                    "dangerous" -> Icons.Rounded.Warning
+                    "suspicious" -> Icons.Rounded.ReportProblem
+                    else -> Icons.Rounded.VerifiedUser
+                },
+                tint = color,
+                size = 44.dp,
+                iconSize = 22.dp
             )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(riskLabel(result.level), fontFamily = PoppinsFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = color)
+                Text("Indice de risque", fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = VigiaTextSecondary)
+            }
+            InfoChip("${result.score}/100", color)
+        }
+
+        Spacer(Modifier.height(14.dp))
+        Text(result.summary, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 21.sp, color = VigiaTextPrimary)
+
+        if (keySignals.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                InfoChip(
-                    text = if (result.aiUsed) "IA Forensique Activée" else "Moteur Heuristique L1-L6",
-                    color = if (result.aiUsed) VigiaViolet else VigiaPrimary
-                )
-                if (offline || !result.syncedWithServer) {
-                    InfoChip("Analyse Locale (Offline)", RiskSuspicious)
+            Text("\u00c0 retenir", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = VigiaTextPrimary)
+            keySignals.forEach { signal ->
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.Top) {
+                    Box(Modifier.padding(top = 6.dp).size(6.dp).clip(CircleShape).background(color))
+                    Spacer(Modifier.width(8.dp))
+                    Text(signal.label, Modifier.weight(1f), fontFamily = PoppinsFontFamily, fontSize = 12.5.sp, lineHeight = 18.sp, color = VigiaTextSecondary)
                 }
             }
         }
 
-        // Signaux et indicateurs de risque
-        if (indicators.isNotEmpty()) {
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                borderBrush = luxuryBorderGradient(RiskDanger),
-                backgroundBrush = luxuryCardGradient(RiskDanger)
-            ) {
-                Text(
-                    "Signaux de Menace Identifiés (${indicators.size})",
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = PoppinsFontFamily,
-                    color = VigiaTextPrimary,
-                    fontSize = 14.5.sp
-                )
-                Spacer(Modifier.height(10.dp))
-                indicators.forEach { signal ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Box(
-                            Modifier
-                                .padding(top = 5.dp)
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (signal.weight >= 25) RiskDanger
-                                    else if (signal.weight >= 12) RiskSuspicious
-                                    else VigiaPrimary
-                                )
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Column(Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = signal.label,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontFamily = PoppinsFontFamily,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = VigiaTextPrimary,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                InfoChip("+${signal.weight}", if (signal.weight >= 25) RiskDanger else RiskSuspicious)
-                            }
-                            if (signal.evidence.isNotBlank()) {
-                                Spacer(Modifier.height(3.dp))
-                                Text(
-                                    text = "Preuve : ${signal.evidence}",
-                                    fontSize = 12.sp,
-                                    fontFamily = PoppinsFontFamily,
-                                    color = VigiaTextSecondary,
-                                    lineHeight = 16.sp
-                                )
-                            }
-                        }
-                    }
-                }
+        firstAction?.let { action ->
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(VigiaPrimarySoft).padding(11.dp), verticalAlignment = Alignment.Top) {
+                Icon(Icons.Rounded.Lightbulb, null, tint = VigiaPrimary, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(action, Modifier.weight(1f), fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Medium, fontSize = 12.5.sp, lineHeight = 18.sp, color = VigiaTextPrimary)
             }
         }
 
-        // Recommandations tactiques
-        if (actions.isNotEmpty()) {
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                borderBrush = luxuryBorderGradient(VigiaViolet),
-                backgroundBrush = luxuryCardGradient(VigiaViolet)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(icon = Icons.Rounded.Shield, tint = VigiaViolet, size = 36.dp, iconSize = 18.dp)
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        "Actions Immédiates Conseillées",
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = PoppinsFontFamily,
-                        color = VigiaViolet,
-                        fontSize = 14.5.sp
-                    )
-                }
-                Spacer(Modifier.height(10.dp))
-                actions.forEach { action ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 3.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Text("•", color = VigiaViolet, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = action.label,
-                            fontFamily = PoppinsFontFamily,
-                            color = VigiaTextPrimary,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp
-                        )
-                    }
-                }
-            }
-        }
-
-        // Éléments rassurants
-        if (reassuring.isNotEmpty()) {
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                borderBrush = SafeBorderGradient,
-                backgroundBrush = luxuryCardGradient(RiskSafe)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(icon = Icons.Rounded.CheckCircle, tint = RiskSafe, size = 34.dp, iconSize = 16.dp)
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        "Points de Sécurité Validés",
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = PoppinsFontFamily,
-                        color = RiskSafe,
-                        fontSize = 14.sp
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-                reassuring.forEach { item ->
-                    Text(
-                        text = "✓ ${item.label}",
-                        fontFamily = PoppinsFontFamily,
-                        color = VigiaTextSecondary,
-                        fontSize = 12.5.sp,
-                        lineHeight = 17.sp,
-                        modifier = Modifier.padding(vertical = 2.dp)
-                    )
-                }
-            }
-        }
-
-        if (technical.isNotEmpty()) {
-            var expandedTechnical by remember(result.id) { mutableStateOf(false) }
-            GlassCard(
-                modifier = Modifier.fillMaxWidth().clickable { expandedTechnical = !expandedTechnical },
-                backgroundColor = Color.White,
-                borderColor = VigiaBorder
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(Icons.Rounded.ManageSearch, VigiaPrimary, size = 36.dp, iconSize = 18.dp)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Détails techniques de l’analyse", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = VigiaTextPrimary)
-                        Text("DNS, destination finale, TLS, page et formulaires lorsqu’ils ont pu être vérifiés", fontFamily = PoppinsFontFamily, fontSize = 11.sp, color = VigiaTextSecondary, lineHeight = 15.sp)
-                    }
-                    Icon(if (expandedTechnical) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, tint = VigiaPrimary)
-                }
-                if (expandedTechnical) {
-                    Spacer(Modifier.height(10.dp))
-                    technical.entries.sortedBy { it.key }.forEach { (key, value) ->
-                        Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.Top) {
-                            Text(key.replace('_', ' '), fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 11.5.sp, color = VigiaTextSecondary, modifier = Modifier.weight(0.42f))
-                            Text(value.toDisplayString(), fontFamily = PoppinsFontFamily, fontSize = 11.5.sp, color = VigiaTextPrimary, modifier = Modifier.weight(0.58f))
-                        }
-                    }
-                }
-            }
-        }
-
-        // Sondes réseau et sources d'intelligence
-        if (sources.isNotEmpty()) {
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                backgroundBrush = luxuryCardGradient(VigiaPrimary),
-                borderBrush = luxuryBorderGradient(VigiaPrimary)
-            ) {
-                Text(
-                    "Sondes Réseau & Moteurs Consultés",
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = PoppinsFontFamily,
-                    color = VigiaTextPrimary,
-                    fontSize = 14.sp
-                )
-                Spacer(Modifier.height(10.dp))
-                sources.forEach { source ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            source.name,
-                            fontFamily = PoppinsFontFamily,
-                            fontWeight = FontWeight.Medium,
-                            color = VigiaTextPrimary,
-                            fontSize = 13.sp,
-                            modifier = Modifier.weight(1f)
-                        )
-                        InfoChip(
-                            text = when (source.status) {
-                                "ok" -> "Vérifié"
-                                "flagged" -> "Menace Détectée"
-                                "disabled" -> "Non Configuré"
-                                "error" -> "Indisponible"
-                                else -> source.status
-                            },
-                            color = when (source.status) {
-                                "flagged" -> RiskDanger
-                                "disabled", "error" -> VigiaTextMuted
-                                else -> RiskSafe
-                            }
-                        )
-                    }
-                    if (source.detail.isNotBlank()) {
-                        Text(
-                            source.detail,
-                            fontSize = 11.sp,
-                            fontFamily = PoppinsFontFamily,
-                            color = VigiaTextSecondary,
-                            lineHeight = 15.sp
-                        )
-                    }
-                }
-            }
+        if (offline || !result.syncedWithServer) {
+            Spacer(Modifier.height(10.dp))
+            InfoChip("Analyse locale", RiskSuspicious)
         }
     }
 }
-
-
 @Composable
 private fun MediaAnalyzePanel() {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -600,18 +389,40 @@ private fun MediaAnalyzePanel() {
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         selectedUri = uri
+        if (uri != null) runCatching { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         result = null
         error = null
         if (uri != null) {
-            selectedType = context.contentResolver.getType(uri).orEmpty()
-            previewBitmap = runCatching {
-                if (selectedType.startsWith("video/")) {
-                    val retriever = MediaMetadataRetriever()
-                    retriever.setDataSource(context, uri)
-                    val bmp = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                    retriever.release(); bmp
-                } else BitmapFactory.decodeStream(context.contentResolver.openInputStream(uri))
-            }.getOrNull()
+            val mime = context.contentResolver.getType(uri).orEmpty()
+            val extension = android.webkit.MimeTypeMap.getFileExtensionFromUrl(uri.toString()).lowercase()
+            selectedType = if (mime.startsWith("video/") || extension in setOf("mp4", "m4v", "mov", "webm", "3gp", "mkv", "avi")) "video/mp4" else mime
+            previewBitmap = null
+            val type = selectedType
+            scope.launch(Dispatchers.IO) {
+                val bitmap = runCatching {
+                    if (type.startsWith("video/")) {
+                        val retriever = MediaMetadataRetriever()
+                        try {
+                            retriever.setDataSource(context, uri)
+                            retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)?.let { frame ->
+                                scaleBitmap(frame, 960).also { if (it !== frame) frame.recycle() }
+                            }
+                        } finally {
+                            retriever.release()
+                        }
+                    } else {
+                        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        context.contentResolver.openInputStream(uri).use { input -> BitmapFactory.decodeStream(input, null, bounds) }
+                        var sample = 1
+                        while (bounds.outWidth / sample > 1280 || bounds.outHeight / sample > 1280) sample *= 2
+                        val options = BitmapFactory.Options().apply { inSampleSize = sample.coerceAtLeast(1) }
+                        context.contentResolver.openInputStream(uri).use { input -> BitmapFactory.decodeStream(input, null, options) }
+                    }
+                }.getOrNull()
+                withContext(Dispatchers.Main.immediate) {
+                    if (selectedUri == uri) previewBitmap = bitmap else bitmap?.recycle()
+                }
+            }
         }
     }
 
@@ -621,7 +432,7 @@ private fun MediaAnalyzePanel() {
             Spacer(Modifier.height(4.dp))
             Text("Ajoutez une photo ou une vidéo. Elle sera analysée par le moteur vision configuré sur le serveur VIGIA.", fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = VigiaTextSecondary, lineHeight = 17.sp)
             Spacer(Modifier.height(12.dp))
-            OutlinedButton(onClick = { launcher.launch(arrayOf("image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/3gpp")) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+            OutlinedButton(onClick = { launcher.launch(arrayOf("image/*", "video/*")) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                 Icon(Icons.Rounded.UploadFile, null); Spacer(Modifier.width(8.dp)); Text("Choisir une photo ou une vidéo", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold)
             }
             if (selectedUri != null) {
@@ -633,7 +444,7 @@ private fun MediaAnalyzePanel() {
                     onClick = {
                         loading = true; error = null; result = null
                         scope.launch {
-                            runCatching { uploadMediaForAnalysis(context, selectedUri!!, selectedType) }
+                            runCatching { withContext(Dispatchers.IO) { uploadMediaForAnalysis(context, selectedUri!!, selectedType) } }
                                 .onSuccess { result = it }
                                 .onFailure { failure ->
                                     val detail = (failure as? HttpException)?.response()?.errorBody()?.string()?.let { body ->
@@ -646,35 +457,34 @@ private fun MediaAnalyzePanel() {
                     },
                     modifier = Modifier.fillMaxWidth(), enabled = !loading, shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = VigiaPrimary)
-                ) { if (loading) CircularProgressIndicator(Modifier.size(18.dp), color = Color.White) else { Icon(Icons.Rounded.Visibility, null); Spacer(Modifier.width(8.dp)); Text("Analyser maintenant", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold) } }
+                ) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                        if (loading) CircularProgressIndicator(Modifier.size(18.dp), color = Color.White) else Icon(Icons.Rounded.Visibility, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (loading) "Analyse en cours..." else "Analyser maintenant", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
         error?.let { ErrorBanner(it) }
         result?.let { res ->
-            GlassCard(backgroundColor = Color.White, borderColor = riskColor(res.level), cornerRadius = 18.dp) {
+            val mediaColor = riskColor(res.level)
+            GlassCard(backgroundColor = Color.White, borderColor = mediaColor.copy(alpha = 0.45f), cornerRadius = 18.dp) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(if (res.level == "dangerous") Icons.Rounded.Warning else if (res.level == "suspicious") Icons.Rounded.ReportProblem else Icons.Rounded.VerifiedUser, riskColor(res.level), size = 44.dp, iconSize = 22.dp)
-                    Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text("${riskLabel(res.level)} • ${res.score}/100", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.ExtraBold, color = riskColor(res.level), fontSize = 15.sp); Text(res.summary, fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = VigiaTextSecondary, lineHeight = 17.sp) }
+                    IconBadge(if (res.level == "dangerous") Icons.Rounded.Warning else if (res.level == "suspicious") Icons.Rounded.ReportProblem else Icons.Rounded.VerifiedUser, mediaColor, size = 42.dp, iconSize = 21.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(riskLabel(res.level), fontFamily = PoppinsFontFamily, fontWeight = FontWeight.ExtraBold, color = mediaColor, fontSize = 15.sp)
+                        Text("${res.score}/100", fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = VigiaTextSecondary)
+                    }
                 }
                 Spacer(Modifier.height(10.dp))
-                Text("${res.framesAnalyzed} image(s) analysée(s)", fontFamily = PoppinsFontFamily, fontSize = 11.sp, color = VigiaTextMuted)
-                if (res.detectedUrls.isNotEmpty() || res.detectedPhones.isNotEmpty()) {
-                    Spacer(Modifier.height(8.dp))
-                    Text("Éléments détectés", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = VigiaTextPrimary)
-                    res.detectedUrls.forEach { Text("• URL : $it", fontFamily = PoppinsFontFamily, fontSize = 11.5.sp, color = VigiaTextSecondary, lineHeight = 16.sp) }
-                    res.detectedPhones.forEach { Text("• Téléphone : $it", fontFamily = PoppinsFontFamily, fontSize = 11.5.sp, color = VigiaTextSecondary, lineHeight = 16.sp) }
+                Text(res.summary, fontFamily = PoppinsFontFamily, fontSize = 13.sp, color = VigiaTextPrimary, lineHeight = 19.sp)
+                res.indicators.take(3).forEach { Text("• $it", fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = VigiaTextSecondary, modifier = Modifier.padding(top = 5.dp)) }
+                res.recommendedActions.firstOrNull()?.let { action ->
+                    Spacer(Modifier.height(10.dp))
+                    Text(action, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = VigiaPrimary, lineHeight = 18.sp)
                 }
-                if (res.observedText.isNotBlank()) {
-                    Spacer(Modifier.height(8.dp))
-                    Text("Texte visible", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = VigiaTextPrimary)
-                    Text(res.observedText, fontFamily = PoppinsFontFamily, fontSize = 11.5.sp, color = VigiaTextSecondary, lineHeight = 16.sp)
-                }
-                if (res.corroboratingScore > 0) {
-                    Spacer(Modifier.height(6.dp))
-                    Text("Corroboration VIGIA : ${res.corroboratingScore}/100", fontFamily = PoppinsFontFamily, fontSize = 11.sp, color = VigiaTextMuted)
-                }
-                res.indicators.forEach { Text("• $it", fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = VigiaTextPrimary, modifier = Modifier.padding(top = 5.dp)) }
-                if (res.recommendedActions.isNotEmpty()) { Spacer(Modifier.height(8.dp)); Text("À faire", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 12.5.sp); res.recommendedActions.forEach { Text("• $it", fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = VigiaTextSecondary, modifier = Modifier.padding(top = 4.dp)) } }
             }
         }
     }
@@ -723,14 +533,14 @@ private fun copyAndCompressImage(context: android.content.Context, uri: Uri, cac
 private fun extractVideoFrames(context: android.content.Context, uri: Uri, cacheDir: File): List<File> {
     val retriever = MediaMetadataRetriever(); retriever.setDataSource(context, uri)
     val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-    val points = if (durationMs <= 0) listOf(0L) else listOf(0L, durationMs / 3, (durationMs * 2) / 3, (durationMs - 1).coerceAtLeast(0))
+    val points = if (durationMs <= 0) listOf(0L) else listOf(0L, durationMs / 2, (durationMs - 1).coerceAtLeast(0))
     val files = mutableListOf<File>()
     points.distinct().forEachIndexed { i, us ->
         retriever.getFrameAtTime(us * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)?.let { bitmap ->
-            val scaled = scaleBitmap(bitmap, 1280)
+            val scaled = scaleBitmap(bitmap, 960)
             bitmap.recycle()
             val file = File(cacheDir, "video_${System.currentTimeMillis()}_$i.jpg")
-            FileOutputStream(file).use { scaled.compress(Bitmap.CompressFormat.JPEG, 82, it) }
+            FileOutputStream(file).use { scaled.compress(Bitmap.CompressFormat.JPEG, 74, it) }
             scaled.recycle(); files += file
         }
     }

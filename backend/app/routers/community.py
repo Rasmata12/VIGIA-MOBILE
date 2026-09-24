@@ -17,9 +17,36 @@ router = APIRouter(prefix="/community", tags=["community"])
 
 # Un signalement ne doit jamais devenir un canal de fuite de donnees bancaires.
 FORBIDDEN_PATTERNS = [
-    (re.compile(r"\b\d{13,19}\b"), "un numero de carte bancaire"),
     (re.compile(r"\bcvv\s*[:=]?\s*\d{3,4}\b", re.I), "un cryptogramme de carte"),
 ]
+
+CARD_NUMBER_CANDIDATE = re.compile(r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)")
+
+
+def _contains_card_number(value: str, allow_international_phone: bool = False) -> bool:
+    """Bloque les cartes par checksum Luhn sans rejeter les numeros de telephone longs."""
+    compact = re.sub(r"[\s-]", "", value or "")
+    if allow_international_phone and (compact.startswith("+") or compact.startswith("00")):
+        digits = re.sub(r"\D", "", compact)
+        if 10 <= len(digits) <= 15:
+            return False
+
+    for candidate in CARD_NUMBER_CANDIDATE.findall(value or ""):
+        digits = re.sub(r"\D", "", candidate)
+        if not 13 <= len(digits) <= 19:
+            continue
+        total = 0
+        parity = len(digits) % 2
+        for index, char in enumerate(digits):
+            number = int(char)
+            if index % 2 == parity:
+                number *= 2
+                if number > 9:
+                    number -= 9
+            total += number
+        if total % 10 == 0:
+            return True
+    return False
 
 RISK_LABELS = [
     (5, "tres_signale"),
@@ -44,6 +71,12 @@ def submit_report(
 ) -> CommunityReportOut:
     # Limite genereuse mais reelle : evite le bourrage automatise sans gener un usage normal.
     rate_limit(db, f"community_report:{user.id}", limit=30, window_seconds=3600)
+
+    if _contains_card_number(payload.target, allow_international_phone=True) or _contains_card_number(payload.description):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Ta saisie semble contenir un numero de carte bancaire. Signale uniquement le lien, le domaine ou le numero de telephone.",
+        )
 
     for pattern, what in FORBIDDEN_PATTERNS:
         if pattern.search(payload.target) or pattern.search(payload.description):

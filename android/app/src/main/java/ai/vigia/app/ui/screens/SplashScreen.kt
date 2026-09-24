@@ -133,7 +133,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                     )
             ) {
                 Image(
-                    painter = painterResource(R.drawable.vigia_logo),
+                    painter = painterResource(R.drawable.vigia_logo_mark),
                     contentDescription = "VIGIA AI Logo",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier

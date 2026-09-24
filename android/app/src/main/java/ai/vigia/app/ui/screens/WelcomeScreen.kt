@@ -104,7 +104,7 @@ fun WelcomeScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            painter = painterResource(R.drawable.vigia_logo),
+                            painter = painterResource(R.drawable.vigia_logo_mark),
                             contentDescription = "VIGIA AI Logo",
                             contentScale = ContentScale.Fit,
                             modifier = Modifier

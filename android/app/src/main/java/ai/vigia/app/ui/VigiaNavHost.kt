@@ -99,7 +99,7 @@ private fun LiquidBottomBar(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 14.dp)
+            .padding(horizontal = 10.dp)
             .padding(bottom = 6.dp, top = 16.dp)
     ) {
         val isCompact = maxWidth < 360.dp

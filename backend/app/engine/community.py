@@ -1,7 +1,6 @@
 """Espace communautaire : signalements crees par les utilisateurs, agreges pour
-avertir les autres. Aucune donnee personnelle n'est partagee entre utilisateurs :
-seule une cible normalisee (domaine ou numero) et un compteur de signalants
-DISTINCTS sont exposes."""
+avertir les autres. Seule la cible, les categories et quelques raisons anonymisees
+sont exposees ; aucune identite de signalant n'est partagee."""
 from __future__ import annotations
 
 import re
@@ -176,10 +175,32 @@ def community_summary(db: Session, target_type: str, target_key: str) -> dict:
     )
     by_category = {category: count for category, count in rows}
     total = sum(by_category.values())
+    reason_rows = (
+        db.query(CommunityReport.description)
+        .filter(
+            CommunityReport.target_type == target_type,
+            CommunityReport.target_key == target_key,
+            CommunityReport.description != "",
+        )
+        .order_by(CommunityReport.created_at.desc())
+        .limit(3)
+        .all()
+    )
+    reasons = []
+    for row in reason_rows:
+        reason = re.sub(r"\s+", " ", row[0] or "").strip()
+        reason = re.sub(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", "[adresse masquée]", reason)
+        reason = re.sub(r"(?<!\w)(?:\+?\d[\d .()-]{6,}\d)(?!\w)", "[numéro masqué]", reason)
+        reason = reason[:240]
+        if reason and reason not in reasons:
+            reasons.append(reason)
+        if len(reasons) == 3:
+            break
     return {
         "target_type": target_type,
         "target_key": target_key,
         "reporters": total,
         "by_category": by_category,
+        "reasons": reasons,
         "weight": weight_for_reports(total),
     }

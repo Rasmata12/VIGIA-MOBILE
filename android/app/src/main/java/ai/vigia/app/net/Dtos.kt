@@ -400,6 +400,7 @@ data class CommunityCheckResponse(
     @SerialName("target_key") val targetKey: String,
     val reporters: Int = 0,
     @SerialName("by_category") val byCategory: Map<String, Int> = emptyMap(),
+    val reasons: List<String> = emptyList(),
     @SerialName("risk_from_reports") val riskFromReports: String = "aucun"
 )
 

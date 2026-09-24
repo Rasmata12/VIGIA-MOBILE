@@ -271,6 +271,7 @@ class CommunityCheckOut(BaseModel):
     target_key: str
     reporters: int
     by_category: dict
+    reasons: list[str] = Field(default_factory=list)
     risk_from_reports: str   # aucun | a_surveiller | suspect | tres_signale
 
 

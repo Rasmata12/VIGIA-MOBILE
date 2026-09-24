@@ -127,7 +127,8 @@ def check_target(
     summary = community.community_summary(db, target_type, target_key)
     return CommunityCheckOut(
         target_type=target_type, target_key=target_key, reporters=summary["reporters"],
-        by_category=summary["by_category"], risk_from_reports=_risk_label(summary["reporters"]),
+        by_category=summary["by_category"], reasons=summary["reasons"],
+        risk_from_reports=_risk_label(summary["reporters"]),
     )
 
 

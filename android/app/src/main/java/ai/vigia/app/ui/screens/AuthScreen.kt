@@ -85,7 +85,7 @@ fun AuthScreen(viewModel: AuthViewModel, onAuthenticated: () -> Unit) {
                     .border(1.dp, VigiaBorderSubtle, RoundedCornerShape(32.dp))
             ) {
                 Image(
-                    painter = painterResource(R.drawable.vigia_logo_mark),
+                    painter = painterResource(R.drawable.vigia_logo),
                     contentDescription = "VIGIA AI Logo",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier

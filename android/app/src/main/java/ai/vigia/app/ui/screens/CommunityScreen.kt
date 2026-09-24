@@ -209,6 +209,27 @@ fun CommunityScreen(viewModel: CommunityViewModel, onBack: () -> Unit) {
                             Spacer(Modifier.height(6.dp))
                         }
                     }
+                    if (result.reasons.isNotEmpty()) {
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            "Raisons indiquées",
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            color = VigiaTextPrimary,
+                            fontSize = 12.5.sp
+                        )
+                        Spacer(Modifier.height(5.dp))
+                        result.reasons.forEach { reason ->
+                            Text(
+                                "• $reason",
+                                fontFamily = PoppinsFontFamily,
+                                color = VigiaTextSecondary,
+                                fontSize = 12.sp,
+                                lineHeight = 17.sp,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                        }
+                    }
                 }
             }
 

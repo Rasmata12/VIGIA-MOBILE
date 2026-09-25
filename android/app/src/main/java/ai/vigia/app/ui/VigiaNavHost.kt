@@ -323,7 +323,7 @@ fun VigiaApp(onLoggedOut: () -> Unit) {
                     viewModel = vm,
                     onAnalyze = { kind -> navController.navigate("analyze/$kind") },
                     onOpenHistory = { navController.navigate("history") },
-                    onOpenItem = { navController.navigate("history") },
+                    onOpenItem = { entry -> navController.navigate(if (entry == "recent") "recent" else "history") },
                     onNavigateToModule = { route -> navController.navigate(route) },
                     onOpenNotifications = { navController.navigate("notifications") }
                 )
@@ -379,6 +379,9 @@ fun VigiaApp(onLoggedOut: () -> Unit) {
             // Historique des analyses
             composable("history") {
                 HistoryScreen(viewModel = viewModel(), onBack = { navController.popBackStack() })
+            }
+            composable("recent") {
+                HistoryScreen(viewModel = viewModel(), onBack = { navController.popBackStack() }, recentOnly = true)
             }
 
             // Profil (compte + conseils de sécurité)

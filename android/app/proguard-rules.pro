@@ -4,3 +4,4 @@
 -keepclasseswithmembers class ai.vigia.app.net.** { kotlinx.serialization.KSerializer serializer(...); }
 -dontwarn okhttp3.**
 -dontwarn okio.**
+-dontwarn com.gemalto.jp2.JP2Decoder

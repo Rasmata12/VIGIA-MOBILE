@@ -29,6 +29,10 @@ fun ProfileScreen(viewModel: SettingsViewModel, onOpenSettings: () -> Unit) {
     var editing by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
     var fullName by remember { mutableStateOf("") }
+    var changingPassword by remember { mutableStateOf(false) }
+    var currentPassword by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var passwordConfirmation by remember { mutableStateOf("") }
     LaunchedEffect(state.email, state.fullName) {
         email = state.email
         fullName = state.fullName
@@ -85,6 +89,34 @@ fun ProfileScreen(viewModel: SettingsViewModel, onOpenSettings: () -> Unit) {
                 )
             }
         }
+
+        SectionHeader("Mot de passe")
+        GlassCard(backgroundColor = Color.White, borderColor = VigiaBorder, cornerRadius = 18.dp) {
+            Row(Modifier.fillMaxWidth().clickable { changingPassword = !changingPassword }, verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.LockReset, null, tint = VigiaPrimary)
+                Spacer(Modifier.width(9.dp))
+                Text("Changer mon mot de passe", Modifier.weight(1f), fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, color = VigiaTextPrimary)
+                Icon(if (changingPassword) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, tint = VigiaPrimary)
+            }
+            if (changingPassword) {
+                Spacer(Modifier.height(12.dp))
+                VigiaField(currentPassword, { currentPassword = it }, "Mot de passe actuel", isPassword = true)
+                Spacer(Modifier.height(8.dp))
+                VigiaField(newPassword, { newPassword = it }, "Nouveau mot de passe", isPassword = true, supporting = "6 caractères minimum")
+                Spacer(Modifier.height(8.dp))
+                VigiaField(passwordConfirmation, { passwordConfirmation = it }, "Confirmer le nouveau mot de passe", isPassword = true)
+                Spacer(Modifier.height(10.dp))
+                GradientButton(
+                    text = "Enregistrer le nouveau mot de passe",
+                    onClick = { viewModel.changePassword(currentPassword, newPassword, passwordConfirmation) },
+                    enabled = !state.passwordSaving,
+                    loading = state.passwordSaving,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                state.passwordError?.let { ErrorBanner(it) }
+            }
+        }
+        state.passwordMessage?.let { Text(it, fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = RiskSafe, modifier = Modifier.padding(horizontal = 4.dp)) }
 
         SectionHeader("État des services")
         GlassCard(backgroundColor = Color.White, borderColor = VigiaBorder) {

@@ -36,6 +36,7 @@ fun JobOfferScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     var content by remember { mutableStateOf("") }
+    var documentText by remember { mutableStateOf("") }
     var companyName by remember { mutableStateOf("") }
     var contactEmail by remember { mutableStateOf("") }
     var salaryPromised by remember { mutableStateOf("") }
@@ -64,8 +65,9 @@ fun JobOfferScreen(
                         DocumentTextExtractor.read(context, uri, context.contentResolver.getType(uri).orEmpty(), name)
                     }
                 }.onSuccess { extracted ->
-                    content = extracted
+                    documentText = extracted
                     documentName = name
+                    content = ""
                     viewModel.reset()
                 }.onFailure { documentError = it.message ?: "Impossible de lire ce document." }
                 documentLoading = false
@@ -175,17 +177,25 @@ fun JobOfferScreen(
                 Spacer(Modifier.width(8.dp))
                 Text(if (documentLoading) "Lecture du document…" else documentName?.let { "Document ajouté : $it" } ?: "Choisir un PDF, Word (.docx) ou texte")
             }
-            Text("Le texte est extrait sur ton téléphone puis placé dans le champ ci-dessous.", fontFamily = PoppinsFontFamily, color = VigiaTextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
+            Text("VIGIA repère les passages utiles du document. Le texte complet n’est pas affiché.", fontFamily = PoppinsFontFamily, color = VigiaTextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
+            if (documentText.isNotBlank()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.CheckCircle, null, tint = RiskSafe, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(7.dp))
+                    Text("Passages utiles prêts pour l’analyse", Modifier.weight(1f), fontFamily = PoppinsFontFamily, color = RiskSafe, fontSize = 11.5.sp)
+                    TextButton(onClick = { documentText = ""; documentName = null }) { Text("Retirer") }
+                }
+            }
             documentError?.let { ErrorBanner(it) }
             Spacer(Modifier.height(4.dp))
 
             VigiaField(
                 value = content,
                 onValueChange = { content = it },
-                label = "Texte intégral de l'offre (recommandé)",
+                label = "Texte de l’offre (si vous n’avez pas de document)",
                 minLines = 5,
                 singleLine = false,
-                supporting = "Tu peux aussi coller le texte de l'offre."
+                supporting = "Vous pouvez coller uniquement les passages utiles."
             )
 
             Spacer(Modifier.height(10.dp))
@@ -259,7 +269,7 @@ fun JobOfferScreen(
                 text = "Vérifier cette offre",
                 onClick = {
                     viewModel.verify(
-                        content = content,
+                        content = if (documentText.isNotBlank()) documentText else content,
                         companyName = companyName,
                         contactEmail = contactEmail,
                         salaryPromised = salaryPromised,
@@ -267,7 +277,7 @@ fun JobOfferScreen(
                     )
                 },
                 loading = state.loading,
-                enabled = content.isNotBlank(),
+                enabled = content.isNotBlank() || documentText.isNotBlank(),
                 icon = Icons.Rounded.VerifiedUser,
                 gradient = androidx.compose.ui.graphics.SolidColor(amberColor),
                 modifier = Modifier.fillMaxWidth()
@@ -276,7 +286,7 @@ fun JobOfferScreen(
 
         state.error?.let {
             ErrorBanner(it, onRetry = {
-                viewModel.verify(content, companyName, contactEmail, salaryPromised, feeRequested)
+                viewModel.verify(if (documentText.isNotBlank()) documentText else content, companyName, contactEmail, salaryPromised, feeRequested)
             })
         }
 

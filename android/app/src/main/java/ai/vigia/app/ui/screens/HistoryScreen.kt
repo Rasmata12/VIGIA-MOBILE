@@ -28,7 +28,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
+fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}, recentOnly: Boolean = false) {
     val items by viewModel.items.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val detail by viewModel.detail.collectAsStateWithLifecycle()
@@ -37,8 +37,9 @@ fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
     var searchQuery by remember { mutableStateOf("") }
     var showConfirmClear by remember { mutableStateOf(false) }
 
-    val filteredItems = remember(items, filterLevel, searchQuery) {
-        items.filter { item ->
+    val visibleItems = if (recentOnly) items.take(5) else items
+    val filteredItems = remember(visibleItems, filterLevel, searchQuery) {
+        visibleItems.filter { item ->
             val matchLevel = filterLevel == null || item.level.equals(filterLevel, ignoreCase = true)
             val matchQuery = searchQuery.isBlank() || item.preview.contains(searchQuery, ignoreCase = true)
             matchLevel && matchQuery
@@ -55,7 +56,7 @@ fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     SubtleBackButton(onBack = onBack, label = "Retour")
                     Spacer(Modifier.weight(1f))
-                    if (items.isNotEmpty()) {
+                    if (!recentOnly && items.isNotEmpty()) {
                         TextButton(onClick = { showConfirmClear = true }) {
                             Icon(Icons.Rounded.DeleteSweep, contentDescription = null, tint = RiskDanger, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
@@ -68,7 +69,7 @@ fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
             item {
                 Column {
                     Text(
-                        "Historique",
+                        if (recentOnly) "Vérifications récentes" else "Historique",
                         style = MaterialTheme.typography.headlineMedium,
                         fontFamily = PoppinsFontFamily,
                         fontWeight = FontWeight.ExtraBold,
@@ -77,7 +78,7 @@ fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "Retrouvez ici vos vérifications précédentes.",
+                        if (recentOnly) "Voici vos cinq dernières vérifications." else "Retrouvez ici vos vérifications précédentes.",
                         fontFamily = PoppinsFontFamily,
                         color = VigiaTextSecondary,
                         fontSize = 12.5.sp,
@@ -87,7 +88,7 @@ fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
             }
 
             // Barre de recherche et filtres
-            if (items.isNotEmpty()) {
+            if (visibleItems.isNotEmpty()) {
                 item {
                     GlassCard(
                         backgroundBrush = luxuryCardGradient(VigiaPrimary),
@@ -111,7 +112,7 @@ fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
                                 .horizontalScroll(rememberScrollState())
                         ) {
                             FilterPill(
-                                label = "Tous (${items.size})",
+                                label = "Tous (${visibleItems.size})",
                                 selected = filterLevel == null,
                                 color = VigiaPrimary
                             ) { filterLevel = null }
@@ -140,7 +141,7 @@ fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
 
             error?.let { item { ErrorBanner(it) } }
 
-            if (items.isEmpty()) {
+            if (visibleItems.isEmpty()) {
                 item {
                     GlassCard(cornerRadius = 24.dp) {
                         EmptyState(

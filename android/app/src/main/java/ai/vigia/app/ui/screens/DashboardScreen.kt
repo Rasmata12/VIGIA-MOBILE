@@ -1,4 +1,4 @@
-package ai.vigia.app.ui.screens
+﻿package ai.vigia.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -112,17 +112,26 @@ fun DashboardScreen(
                 }
             }
 
+            item { Text("Mes vérifications", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = VigiaTextPrimary) }
             item {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Récent", Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = VigiaTextPrimary)
-                    TextButton(onClick = onOpenHistory) { Text("Historique") }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    VerificationEntryCard("Récent", "${history.take(5).size} derniers", Icons.Rounded.History, VigiaPrimary, Modifier.weight(1f)) { onOpenItem("recent") }
+                    VerificationEntryCard("Historique", "${history.size} vérifications", Icons.Rounded.FolderOpen, VigiaSecondary, Modifier.weight(1f), onOpenHistory)
                 }
             }
-            if (history.isEmpty()) item {
-                GlassCard(backgroundColor = Color.White, borderColor = VigiaBorder, cornerRadius = 16.dp, contentPadding = PaddingValues(14.dp)) {
-                    Text("Aucune vérification pour le moment.", fontSize = 12.sp, color = VigiaTextSecondary)
-                }
-            } else items(history.take(2), key = { it.id }) { entry -> AnalysisRow(entry) { onOpenItem(entry.id) } }
+        }
+    }
+}
+
+@Composable
+private fun VerificationEntryCard(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    GlassCard(modifier = modifier.height(132.dp).clickable(onClick = onClick), backgroundColor = Color.White, borderColor = tint.copy(alpha = .3f), cornerRadius = 18.dp, contentPadding = PaddingValues(13.dp)) {
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+            Icon(icon, null, tint = tint, modifier = Modifier.size(23.dp))
+            Column {
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = VigiaTextPrimary)
+                Text(subtitle, fontSize = 10.sp, color = VigiaTextSecondary)
+            }
         }
     }
 }

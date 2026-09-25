@@ -280,15 +280,12 @@ fun BeforePayScreen(
                     )
                 }
 
-                if (assessment.scamDna.isNotEmpty()) {
-                    SectionHeader("Marqueurs Identifiés (Scam DNA)")
-                    assessment.scamDna.forEach { trait ->
-                        ScamDnaCard(
-                            category = trait.category,
-                            label = trait.label,
-                            strength = trait.strength,
-                            evidence = trait.evidence
-                        )
+                val keySignals = assessment.signals.filter { it.weight > 0 }.sortedByDescending { it.weight }.take(3)
+                if (keySignals.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text("Éléments relevés", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 13.sp)
+                    keySignals.forEach { signal ->
+                        Text("• ${signal.label}", fontFamily = PoppinsFontFamily, color = VigiaTextSecondary, fontSize = 11.5.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 5.dp))
                     }
                 }
             }

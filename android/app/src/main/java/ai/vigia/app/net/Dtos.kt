@@ -43,6 +43,13 @@ data class ProfilePatch(
 )
 
 @Serializable
+data class PasswordChangeRequest(
+    @SerialName("current_password") val currentPassword: String,
+    @SerialName("new_password") val newPassword: String,
+    @SerialName("refresh_token") val refreshToken: String
+)
+
+@Serializable
 data class AnalyseRequest(
     val kind: String,
     val content: String,

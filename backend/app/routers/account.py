@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Alert, AuthSession, CommunityReport, Device, Event, User, UserSettings
-from app.schemas import AlertOut, DeleteAccountIn, ProfilePatch, SettingsFullOut, SettingsFullPatch, UserOut
-from app.security import current_user, verify_password
+from app.schemas import AlertOut, DeleteAccountIn, PasswordChangeIn, ProfilePatch, SettingsFullOut, SettingsFullPatch, UserOut
+from app.security import current_user, hash_password, resolve_refresh_token, validate_password, verify_password
 
 router = APIRouter(prefix="/account", tags=["account"])
 
@@ -76,6 +76,25 @@ def update_profile(payload: ProfilePatch, user: User = Depends(current_user), db
         raise HTTPException(status.HTTP_409_CONFLICT, "Cette adresse e-mail est déjà utilisée.")
     db.refresh(user)
     return user
+
+
+@router.patch("/password", status_code=204, response_model=None)
+def change_password(payload: PasswordChangeIn, user: User = Depends(current_user), db: Session = Depends(get_db)) -> None:
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Le mot de passe actuel est incorrect.")
+    validate_password(payload.new_password)
+    if verify_password(payload.new_password, user.password_hash):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Choisis un mot de passe différent de l'ancien.")
+    session = resolve_refresh_token(db, payload.refresh_token)
+    if session.user_id != user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Cette session n'appartient pas à ce compte.")
+    user.password_hash = hash_password(payload.new_password)
+    db.query(AuthSession).filter(
+        AuthSession.user_id == user.id,
+        AuthSession.id != session.id,
+        AuthSession.revoked.is_(False),
+    ).update({AuthSession.revoked: True}, synchronize_session=False)
+    db.commit()
 
 
 @router.delete("", status_code=204, response_model=None)

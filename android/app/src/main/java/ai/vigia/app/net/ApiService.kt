@@ -71,6 +71,9 @@ interface ApiService {
     @PATCH("account/profile")
     suspend fun updateProfile(@Body body: ProfilePatch): UserResponse
 
+    @PATCH("account/password")
+    suspend fun changePassword(@Body body: PasswordChangeRequest)
+
     @GET("account/settings")
     suspend fun settings(): SettingsDto
 

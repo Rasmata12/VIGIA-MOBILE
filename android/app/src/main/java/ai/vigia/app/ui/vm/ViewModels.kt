@@ -34,6 +34,7 @@ import ai.vigia.app.net.PrivacySummaryDto
 import ai.vigia.app.net.DeviceDto
 import ai.vigia.app.net.AlertDto
 import ai.vigia.app.net.ProfilePatch
+import ai.vigia.app.net.PasswordChangeRequest
 import ai.vigia.app.guard.GuardPreferences
 import ai.vigia.app.guard.PermissionCenter
 
@@ -246,6 +247,9 @@ data class SettingsUiState(
     val email: String = "",
     val fullName: String = "",
     val profileSaving: Boolean = false,
+    val passwordSaving: Boolean = false,
+    val passwordMessage: String? = null,
+    val passwordError: String? = null,
     val notifications: Boolean = true,
     val aiEnabled: Boolean = true,
     val serverReachable: Boolean? = null,
@@ -294,6 +298,36 @@ class SettingsViewModel : ViewModel() {
                     _state.value = _state.value.copy(email = it.email, fullName = it.fullName, profileSaving = false, message = "Ton compte a été mis à jour.")
                 }
                 .onFailure { _state.value = _state.value.copy(profileSaving = false, message = it.apiErrorMessage("Modification impossible.")) }
+        }
+    }
+
+    fun changePassword(current: String, new: String, confirmation: String) {
+        if (current.isBlank()) {
+            _state.value = _state.value.copy(passwordError = "Entre ton mot de passe actuel.", passwordMessage = null)
+            return
+        }
+        if (new.length < 6) {
+            _state.value = _state.value.copy(passwordError = "Le nouveau mot de passe doit contenir au moins 6 caractères.", passwordMessage = null)
+            return
+        }
+        if (new != confirmation) {
+            _state.value = _state.value.copy(passwordError = "Les deux nouveaux mots de passe ne correspondent pas.", passwordMessage = null)
+            return
+        }
+        val refreshToken = ServiceLocator.tokens.refreshToken
+        if (refreshToken.isNullOrBlank()) {
+            _state.value = _state.value.copy(passwordError = "Reconnecte-toi avant de changer ton mot de passe.", passwordMessage = null)
+            return
+        }
+        _state.value = _state.value.copy(passwordSaving = true, passwordError = null, passwordMessage = null)
+        viewModelScope.launch {
+            runCatching { api.changePassword(PasswordChangeRequest(current, new, refreshToken)) }
+                .onSuccess {
+                    _state.value = _state.value.copy(passwordSaving = false, passwordMessage = "Mot de passe modifié. Les autres appareils ont été déconnectés.")
+                }
+                .onFailure {
+                    _state.value = _state.value.copy(passwordSaving = false, passwordError = it.apiErrorMessage("Impossible de modifier le mot de passe."))
+                }
         }
     }
 

@@ -166,6 +166,16 @@ async def analyse_text(text: str, online: bool = True) -> EngineResult:
         signals.append(Signal("combo_phishing", "Combinaison caracteristique d'hameconnage : pression psychologique + demande d'identifiants.", 18, category="synthese"))
     if {"arnaque_financiere", "appat"} <= combos:
         signals.append(Signal("combo_advance_fee", "Combinaison caracteristique de l'arnaque a l'avance de frais : gain promis + paiement demande.", 18, category="synthese"))
+    # Le croisement paiement + demande de donnees confidentielles est un
+    # signal plus fort que la simple presence isolee de ces termes.
+    codes = {s.code for s in signals}
+    if codes.intersection({"paiement", "paiement_mobile_context"}) and codes.intersection({"identifiants", "donnees_perso"}):
+        signals.append(Signal(
+            "combo_paiement_secret",
+            "Le message demande un paiement et des informations confidentielles. Ne paie pas et ne transmets aucun code.",
+            24,
+            category="synthese",
+        ))
     if {"arnaque_annonce"} & combos and "manipulation" in combos:
         signals.append(Signal("combo_fake_listing", "Combinaison caracteristique d'une fausse annonce : impossibilite de verifier le bien + pression pour payer vite.", 16, category="synthese"))
 

@@ -131,6 +131,12 @@ class ProfilePatch(BaseModel):
     full_name: str | None = Field(default=None, max_length=120)
 
 
+class PasswordChangeIn(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6, max_length=128)
+    refresh_token: str = Field(min_length=20)
+
+
 class HealthOut(BaseModel):
     status: str
     engine_version: str

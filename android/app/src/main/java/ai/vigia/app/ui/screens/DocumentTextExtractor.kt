@@ -11,7 +11,9 @@ import java.util.zip.ZipInputStream
 
 /** Lit localement le texte d'un PDF, DOCX ou TXT avant de l'envoyer à l'analyse d'emploi. */
 object DocumentTextExtractor {
-    private const val MAX_TEXT = 20_000
+    private const val MAX_TEXT = 8_000
+    private const val MAX_PDF_PAGES = 5
+    private val relevantWords = Regex("(?i)emploi|recrut|salaire|rémunér|poste|candid|formation|paiement|frais|entreprise|contrat|contact|adresse|offre")
 
     fun read(context: Context, uri: Uri, mime: String, fileName: String): String {
         val extension = fileName.substringAfterLast('.', "").lowercase()
@@ -35,11 +37,22 @@ object DocumentTextExtractor {
             ?: throw IllegalArgumentException("Impossible d'ouvrir ce document.")
         input.use { stream ->
             PDDocument.load(stream).use { document ->
-                val stripper = PDFTextStripper().apply {
-                    startPage = 1
-                    endPage = document.numberOfPages.coerceAtMost(12)
+                val pages = (1..document.numberOfPages).mapNotNull { pageNumber ->
+                    val text = PDFTextStripper().apply {
+                        startPage = pageNumber
+                        endPage = pageNumber
+                    }.getText(document).replace(Regex("\\s+"), " ").trim()
+                    if (text.isBlank()) null else pageNumber to text
                 }
-                return stripper.getText(document)
+                if (pages.isEmpty()) return ""
+                val selected = (pages.take(1) + pages.drop(1)
+                    .sortedByDescending { (_, text) -> relevantWords.findAll(text).count() }
+                    .take(MAX_PDF_PAGES - 1))
+                    .distinctBy { it.first }
+                    .sortedBy { it.first }
+                return selected.joinToString("\n\n") { (number, text) ->
+                    "Page $number : ${text.take(1_700)}"
+                }.take(MAX_TEXT)
             }
         }
     }

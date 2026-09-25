@@ -35,14 +35,9 @@ class MainActivity : ComponentActivity() {
                 val authState by authViewModel.state.collectAsState()
                 var loggedIn by remember { mutableStateOf(ServiceLocator.tokens.isLoggedIn) }
 
-                // Si l'onboarding a déjà été vu (ou si l'utilisateur est déjà connecté),
-                // on saute directement à l'étape utile plutôt que de repasser par l'intro.
-                var step by remember {
-                    mutableStateOf(
-                        if (loggedIn || ServiceLocator.tokens.onboardingSeen) LaunchStep.AUTH
-                        else LaunchStep.SPLASH
-                    )
-                }
+                // L'écran de lancement s'affiche à chaque ouverture. L'introduction,
+                // elle, reste réservée à la première utilisation.
+                var step by remember { mutableStateOf(LaunchStep.SPLASH) }
 
                 LaunchedEffect(authState.loggedIn) { loggedIn = authState.loggedIn || ServiceLocator.tokens.isLoggedIn }
                 LaunchedEffect(loggedIn) {
@@ -57,7 +52,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 Box(Modifier.fillMaxSize().background(BackgroundGradient)) {
-                    if (loggedIn) {
+                    if (loggedIn && step != LaunchStep.SPLASH) {
                         VigiaApp(onLoggedOut = {
                             authViewModel.logout()
                             loggedIn = false
@@ -65,7 +60,9 @@ class MainActivity : ComponentActivity() {
                         })
                     } else {
                         when (step) {
-                            LaunchStep.SPLASH -> SplashScreen(onFinished = { step = LaunchStep.ONBOARDING })
+                            LaunchStep.SPLASH -> SplashScreen(onFinished = {
+                                step = if (ServiceLocator.tokens.onboardingSeen) LaunchStep.AUTH else LaunchStep.ONBOARDING
+                            })
                             LaunchStep.WELCOME -> WelcomeScreen(
                                 onDiscover = { step = LaunchStep.ONBOARDING },
                                 onHaveAccount = enterApp

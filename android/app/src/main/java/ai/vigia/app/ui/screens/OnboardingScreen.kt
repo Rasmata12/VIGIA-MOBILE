@@ -13,9 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowForward
-import androidx.compose.material.icons.rounded.Groups
-import androidx.compose.material.icons.rounded.ReportProblem
-import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,7 +35,7 @@ import ai.vigia.app.ui.components.SubtleBackButton
 import ai.vigia.app.ui.theme.*
 
 private data class OnboardingSlide(
-    val image: Int?,
+    val image: Int,
     val badge: String,
     val badgeColor: Color,
     val heading: String,
@@ -75,39 +72,13 @@ private val SLIDES = listOf(
         description = "Scannez les QR codes et factures douteuses avec le scanner Google intégré pour détecter les redirections malveillantes en 1 seconde."
     ),
     OnboardingSlide(
-        image = null,
+        image = R.drawable.onboard_community,
         badge = "COMMUNAUT\u00C9 VIGIA",
         badgeColor = VigiaSecondary,
         heading = "Une communaut\u00E9 plus s\u00FBre, ensemble",
         description = "Signalez les tentatives d'arnaque et consultez les informations partag\u00E9es pour aider chacun \u00E0 agir avec prudence."
     )
 )
-
-@Composable
-private fun CommunityIllustration(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.background(Brush.linearGradient(listOf(Color(0xFFE8F1FF), Color(0xFFF0EAFE), Color(0xFFDFF7F2)))),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(Modifier.size(174.dp).clip(CircleShape).background(Color.White.copy(alpha = .65f)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.Groups, null, tint = VigiaSecondary, modifier = Modifier.size(112.dp))
-        }
-        CommunityNote("V\u00E9rifier une info", Icons.Rounded.Shield, Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = 76.dp))
-        CommunityNote("Signaler une arnaque", Icons.Rounded.ReportProblem, Modifier.align(Alignment.TopEnd).padding(end = 14.dp, top = 24.dp))
-        CommunityNote("S'entraider", Icons.Rounded.Groups, Modifier.align(Alignment.BottomEnd).padding(end = 14.dp, bottom = 28.dp))
-    }
-}
-
-@Composable
-private fun CommunityNote(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, shape = RoundedCornerShape(14.dp), color = Color.White.copy(alpha = .94f), shadowElevation = 7.dp) {
-        Row(Modifier.padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = VigiaSecondary, modifier = Modifier.size(19.dp))
-            Spacer(Modifier.width(7.dp))
-            Text(label, fontFamily = PoppinsFontFamily, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = VigiaTextPrimary)
-        }
-    }
-}
 
 @Composable
 fun OnboardingScreen(
@@ -226,7 +197,7 @@ fun OnboardingScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .aspectRatio(1.15f)
+                                .aspectRatio(if (slide.image == R.drawable.onboard_community) 1.5f else 1.15f)
                                 .shadow(
                                     elevation = 18.dp,
                                     shape = RoundedCornerShape(32.dp),
@@ -241,19 +212,15 @@ fun OnboardingScreen(
                                     shape = RoundedCornerShape(32.dp)
                                 )
                         ) {
-                            if (slide.image != null) {
-                                Image(
-                                    painter = painterResource(id = slide.image),
-                                    contentDescription = slide.heading,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                CommunityIllustration(Modifier.fillMaxSize())
-                            }
+                            Image(
+                                painter = painterResource(id = slide.image),
+                                contentDescription = slide.heading,
+                                contentScale = if (slide.image == R.drawable.onboard_community) ContentScale.Fit else ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
 
-                            // Badge flottant sur l'image
-                            Box(
+                            // L'image de la communauté contient déjà ses propres repères.
+                            if (slide.image != R.drawable.onboard_community) Box(
                                 modifier = Modifier
                                     .padding(14.dp)
                                     .align(Alignment.TopStart)

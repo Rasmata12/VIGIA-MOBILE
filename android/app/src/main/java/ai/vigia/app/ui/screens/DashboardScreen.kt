@@ -31,7 +31,8 @@ fun DashboardScreen(
     onAnalyze: (String) -> Unit,
     onOpenHistory: () -> Unit,
     onOpenItem: (String) -> Unit,
-    onNavigateToModule: (String) -> Unit = {}
+    onNavigateToModule: (String) -> Unit = {},
+    onOpenNotifications: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val history by viewModel.history.collectAsStateWithLifecycle()
@@ -52,7 +53,12 @@ fun DashboardScreen(
                     Spacer(Modifier.width(10.dp))
                     Text("VIGIA", Modifier.weight(1f), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = VigiaTextPrimary)
                     InfoChip(if (state.offline) "Hors ligne" else "Protégé", if (state.offline) RiskSuspicious else RiskSafe)
-                    IconButton(onClick = { viewModel.refresh() }) { Icon(Icons.Rounded.Refresh, "Actualiser", tint = VigiaTextSecondary) }
+                    IconButton(onClick = onOpenNotifications) {
+                        BadgedBox(badge = {
+                            val unread = state.stats?.unreadAlerts ?: 0
+                            if (unread > 0) Badge { Text(if (unread > 9) "9+" else unread.toString()) }
+                        }) { Icon(Icons.Rounded.Notifications, "Notifications", tint = VigiaTextSecondary) }
+                    }
                 }
             }
 
@@ -102,7 +108,7 @@ fun DashboardScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     CompactLink("VIGIA Guard", "Protection en temps réel", Icons.Rounded.Security, RiskSafe) { onNavigateToModule("guard") }
                     CompactLink("Avant de payer", "Vérifier un transfert", Icons.Rounded.AccountBalanceWallet, RiskDanger) { onNavigateToModule("before_pay") }
-                    CompactLink("Tous les services", "Communauté, emploi, annonces et leçons", Icons.Rounded.Apps, VigiaPrimary) { onNavigateToModule("services") }
+                    CompactLink("Tous les services", "Communauté, emploi et leçons", Icons.Rounded.Apps, VigiaPrimary) { onNavigateToModule("services") }
                 }
             }
 

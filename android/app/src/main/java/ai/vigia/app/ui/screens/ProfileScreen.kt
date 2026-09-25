@@ -26,12 +26,35 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun ProfileScreen(viewModel: SettingsViewModel, onOpenSettings: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var editing by remember { mutableStateOf(false) }
+    var email by remember { mutableStateOf("") }
+    var fullName by remember { mutableStateOf("") }
+    LaunchedEffect(state.email, state.fullName) {
+        email = state.email
+        fullName = state.fullName
+    }
+    LaunchedEffect(state.message, state.profileSaving) {
+        if (!state.profileSaving && state.message == "Ton compte a été mis à jour.") editing = false
+    }
     Column(
         Modifier.fillMaxSize().background(VigiaCanvas).verticalScroll(rememberScrollState())
             .padding(20.dp).padding(top = 18.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("Profil", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 25.sp, color = VigiaTextPrimary)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Profil", Modifier.weight(1f), fontFamily = PoppinsFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 25.sp, color = VigiaTextPrimary)
+            TextButton(onClick = {
+                if (editing) {
+                    email = state.email
+                    fullName = state.fullName
+                }
+                editing = !editing
+            }) {
+                Icon(if (editing) Icons.Rounded.Close else Icons.Rounded.Edit, null)
+                Spacer(Modifier.width(5.dp))
+                Text(if (editing) "Annuler" else "Modifier")
+            }
+        }
 
         GlassCard(backgroundColor = Color.White, borderColor = VigiaBorder, cornerRadius = 18.dp) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -40,9 +63,26 @@ fun ProfileScreen(viewModel: SettingsViewModel, onOpenSettings: () -> Unit) {
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(state.email.ifBlank { "Utilisateur VIGIA" }, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = VigiaTextPrimary)
-                    Text("Compte VIGIA", fontFamily = PoppinsFontFamily, fontSize = 11.5.sp, color = VigiaTextSecondary)
+                    if (editing) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            VigiaField(fullName, { fullName = it }, "Nom")
+                            VigiaField(email, { email = it }, "Adresse e-mail", keyboardType = androidx.compose.ui.text.input.KeyboardType.Email)
+                        }
+                    } else {
+                        Text(state.fullName.ifBlank { "Utilisateur VIGIA" }, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = VigiaTextPrimary)
+                        Text(state.email, fontFamily = PoppinsFontFamily, fontSize = 11.5.sp, color = VigiaTextSecondary)
+                    }
                 }
+            }
+            if (editing) {
+                Spacer(Modifier.height(12.dp))
+                GradientButton(
+                    text = "Enregistrer les changements",
+                    onClick = { viewModel.updateProfile(email, fullName) },
+                    enabled = !state.profileSaving,
+                    loading = state.profileSaving,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
 
@@ -62,7 +102,11 @@ fun ProfileScreen(viewModel: SettingsViewModel, onOpenSettings: () -> Unit) {
             SettingSwitch("Analyses IA approfondies", "Utiliser la couche IA lorsqu'elle est disponible", state.aiEnabled, viewModel::setAi)
         }
 
-        state.message?.let { ErrorBanner(it) }
+        state.message?.let {
+            if (it == "Ton compte a été mis à jour.") {
+                Text(it, fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = RiskSafe, modifier = Modifier.padding(horizontal = 4.dp))
+            } else ErrorBanner(it)
+        }
         OutlinedButton(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Rounded.Security, null); Spacer(Modifier.width(8.dp)); Text("Confidentialité, appareils et suppression du compte") }
     }
 }

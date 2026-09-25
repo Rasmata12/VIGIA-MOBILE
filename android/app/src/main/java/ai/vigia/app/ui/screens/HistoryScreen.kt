@@ -68,7 +68,7 @@ fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
             item {
                 Column {
                     Text(
-                        "Historique Forensique",
+                        "Historique",
                         style = MaterialTheme.typography.headlineMedium,
                         fontFamily = PoppinsFontFamily,
                         fontWeight = FontWeight.ExtraBold,
@@ -77,7 +77,7 @@ fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "${items.size} rapport(s) d'audit enregistrés et archivés sur votre terminal sécurisé.",
+                        "Retrouvez ici vos vérifications précédentes.",
                         fontFamily = PoppinsFontFamily,
                         color = VigiaTextSecondary,
                         fontSize = 12.5.sp,
@@ -145,7 +145,7 @@ fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
                     GlassCard(cornerRadius = 24.dp) {
                         EmptyState(
                             title = "Historique vierge",
-                            message = "Chaque analyse de lien, SMS ou QR code effectuée sera archivée ici avec son rapport technique d'intégrité."
+                            message = "Les résultats de tes vérifications apparaîtront ici."
                         )
                     }
                 }
@@ -181,7 +181,7 @@ fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
             },
             text = {
                 Text(
-                    "Cette action supprimera irréversiblement tous les rapports forensiques stockés sur cet appareil et synchronisés sur le cloud.",
+                    "Cette action supprimera définitivement les résultats enregistrés sur cet appareil et sur ton compte.",
                     fontFamily = PoppinsFontFamily,
                     color = VigiaTextSecondary,
                     fontSize = 13.sp,
@@ -232,7 +232,7 @@ fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
                     .padding(horizontal = 20.dp)
                     .padding(bottom = 36.dp)
             ) {
-                SectionHeader("Fiche d'Audit Technique Forensique")
+                SectionHeader("Détail de la vérification")
                 Spacer(Modifier.height(10.dp))
                 ResultSection(item, offline = !item.syncedWithServer)
                 Spacer(Modifier.height(16.dp))
@@ -247,7 +247,7 @@ fun HistoryScreen(viewModel: HistoryViewModel, onBack: () -> Unit = {}) {
                 ) {
                     Icon(Icons.Rounded.DeleteOutline, contentDescription = null, tint = RiskDanger, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Purger ce rapport spécifique", color = RiskDanger, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("Supprimer ce résultat", color = RiskDanger, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             }
         }

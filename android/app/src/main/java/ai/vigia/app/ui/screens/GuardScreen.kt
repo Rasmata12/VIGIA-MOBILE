@@ -217,7 +217,7 @@ fun GuardScreen(
                     color = VigiaPrimary,
                     icon = Icons.Rounded.VerifiedUser,
                     badgeText = "24h",
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).height(208.dp),
                     subtitle = "Notifications vérifiées"
                 )
                 StatTile(
@@ -226,7 +226,7 @@ fun GuardScreen(
                     color = if ((state.serverStatus?.alertsLast24h ?: 0) > 0) RiskDanger else RiskSafe,
                     icon = Icons.Rounded.Shield,
                     badgeText = "Bloquées",
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).height(208.dp),
                     subtitle = "Alertes émises"
                 )
             }

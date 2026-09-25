@@ -324,8 +324,13 @@ fun VigiaApp(onLoggedOut: () -> Unit) {
                     onAnalyze = { kind -> navController.navigate("analyze/$kind") },
                     onOpenHistory = { navController.navigate("history") },
                     onOpenItem = { navController.navigate("history") },
-                    onNavigateToModule = { route -> navController.navigate(route) }
+                    onNavigateToModule = { route -> navController.navigate(route) },
+                    onOpenNotifications = { navController.navigate("notifications") }
                 )
+            }
+
+            composable("notifications") {
+                AlertsScreen(viewModel = viewModel(), onBack = { navController.popBackStack() })
             }
 
             // Analyseur / Vérification multi-sources

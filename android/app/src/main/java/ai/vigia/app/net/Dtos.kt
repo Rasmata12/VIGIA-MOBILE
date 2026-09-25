@@ -37,6 +37,12 @@ data class UserResponse(
 )
 
 @Serializable
+data class ProfilePatch(
+    val email: String,
+    @SerialName("full_name") val fullName: String
+)
+
+@Serializable
 data class AnalyseRequest(
     val kind: String,
     val content: String,

@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 class RegisterIn(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=10, max_length=128)
+    password: str = Field(min_length=6, max_length=128)
     full_name: str = Field(default="", max_length=120)
     device_label: str = Field(default="", max_length=120)
 
@@ -124,6 +124,11 @@ class SettingsOut(BaseModel):
 
 class DeleteAccountIn(BaseModel):
     password: str
+
+
+class ProfilePatch(BaseModel):
+    email: EmailStr | None = None
+    full_name: str | None = Field(default=None, max_length=120)
 
 
 class HealthOut(BaseModel):

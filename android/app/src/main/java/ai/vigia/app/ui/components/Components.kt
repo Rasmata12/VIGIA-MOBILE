@@ -552,7 +552,8 @@ fun StatTile(
             fontFamily = PoppinsFontFamily,
             fontWeight = FontWeight.SemiBold,
             color = VigiaTextPrimary,
-            lineHeight = 16.sp
+            lineHeight = 16.sp,
+            maxLines = 2
         )
         if (subtitle != null) {
             Spacer(Modifier.height(2.dp))
@@ -561,7 +562,8 @@ fun StatTile(
                 fontSize = 10.5.sp,
                 fontFamily = PoppinsFontFamily,
                 color = VigiaTextSecondary,
-                lineHeight = 14.sp
+                lineHeight = 14.sp,
+                maxLines = 2
             )
         }
     }

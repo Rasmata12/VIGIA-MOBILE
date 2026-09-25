@@ -27,10 +27,7 @@ private data class ServiceLink(val name: String, val hint: String, val icon: Ima
 fun ServicesScreen(onNavigate: (String) -> Unit) {
     val groups = listOf(
         "Paiement" to listOf(ServiceLink("Avant de payer", "Vérifier un transfert", Icons.Rounded.AccountBalanceWallet, RiskDanger, "before_pay")),
-        "Achats et emploi" to listOf(
-            ServiceLink("Offres d’emploi", "Repérer les fausses offres", Icons.Rounded.WorkspacePremium, Color(0xFFD97706), "job_offer"),
-            ServiceLink("Petites annonces", "Vérifier un vendeur ou une annonce", Icons.Rounded.Storefront, VigiaViolet, "listing")
-        ),
+        "Emploi" to listOf(ServiceLink("Offres d’emploi", "Vérifier une offre ou un recruteur", Icons.Rounded.WorkspacePremium, Color(0xFFD97706), "job_offer")),
         "Apprendre et signaler" to listOf(
             ServiceLink("Leçons", "Conseils pratiques", Icons.Rounded.School, VigiaPrimary, "lessons"),
             ServiceLink("Communauté", "Consulter ou envoyer un signalement", Icons.Rounded.Diversity3, RiskSafe, "community"),

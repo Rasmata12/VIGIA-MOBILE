@@ -3,12 +3,15 @@ package ai.vigia.app.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -16,6 +19,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import ai.vigia.app.ui.components.*
 import ai.vigia.app.ui.theme.*
 import ai.vigia.app.ui.vm.JobOfferViewModel
@@ -36,6 +43,35 @@ fun JobOfferScreen(
     var showOptionalDetails by remember { mutableStateOf(false) }
     var showAssessmentDetails by remember { mutableStateOf(false) }
     var showChecklist by remember { mutableStateOf(false) }
+    var documentName by remember { mutableStateOf<String?>(null) }
+    var documentLoading by remember { mutableStateOf(false) }
+    var documentError by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            documentLoading = true
+            documentError = null
+            scope.launch {
+                val name = runCatching {
+                    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                        val column = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (cursor.moveToFirst() && column >= 0) cursor.getString(column) else "Document"
+                    } ?: "Document"
+                }.getOrDefault("Document")
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        DocumentTextExtractor.read(context, uri, context.contentResolver.getType(uri).orEmpty(), name)
+                    }
+                }.onSuccess { extracted ->
+                    content = extracted
+                    documentName = name
+                    viewModel.reset()
+                }.onFailure { documentError = it.message ?: "Impossible de lire ce document." }
+                documentLoading = false
+            }
+        }
+    }
 
     val amberColor = Color(0xFFD97706)
 
@@ -51,12 +87,12 @@ fun JobOfferScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             SubtleBackButton(onBack = onBack, label = "Retour")
             Spacer(Modifier.weight(1f))
-            InfoChip("Audit Recrutement", amberColor)
+            InfoChip("Offre d'emploi", amberColor)
         }
 
         Column {
             Text(
-                "Audit d'Offre d'Emploi",
+                "Vérifier une offre d'emploi",
                 style = MaterialTheme.typography.headlineMedium,
                 fontFamily = PoppinsFontFamily,
                 fontWeight = FontWeight.ExtraBold,
@@ -117,7 +153,7 @@ fun JobOfferScreen(
                     IconBadge(icon = Icons.Rounded.Description, tint = amberColor, size = 36.dp, iconSize = 18.dp)
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        "Détails de l'annonce",
+                        "Détails de l'offre",
                         fontWeight = FontWeight.Bold,
                         fontFamily = PoppinsFontFamily,
                         color = VigiaTextPrimary,
@@ -128,13 +164,28 @@ fun JobOfferScreen(
 
             Spacer(Modifier.height(14.dp))
 
+            OutlinedButton(
+                onClick = { documentPicker.launch(arrayOf("application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain")) },
+                enabled = !documentLoading,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                if (documentLoading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                else Icon(Icons.Rounded.UploadFile, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(if (documentLoading) "Lecture du document…" else documentName?.let { "Document ajouté : $it" } ?: "Choisir un PDF, Word (.docx) ou texte")
+            }
+            Text("Le texte est extrait sur ton téléphone puis placé dans le champ ci-dessous.", fontFamily = PoppinsFontFamily, color = VigiaTextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
+            documentError?.let { ErrorBanner(it) }
+            Spacer(Modifier.height(4.dp))
+
             VigiaField(
                 value = content,
                 onValueChange = { content = it },
                 label = "Texte intégral de l'offre (recommandé)",
                 minLines = 5,
                 singleLine = false,
-                supporting = "Collez le message, l'e-mail ou le texte visible sur la capture. C'est l'entrée principale de l'audit."
+                supporting = "Tu peux aussi coller le texte de l'offre."
             )
 
             Spacer(Modifier.height(10.dp))
@@ -205,7 +256,7 @@ fun JobOfferScreen(
             Spacer(Modifier.height(16.dp))
 
             GradientButton(
-                text = "Lancer l'audit de l'offre",
+                text = "Vérifier cette offre",
                 onClick = {
                     viewModel.verify(
                         content = content,
@@ -230,7 +281,7 @@ fun JobOfferScreen(
         }
 
         state.result?.let { res ->
-            SectionHeader("Verdict d'Authenticité")
+            SectionHeader("Résultat")
 
             DecisionBanner(
                 decision = res.decision,
@@ -247,7 +298,7 @@ fun JobOfferScreen(
                         IconBadge(icon = Icons.Rounded.ReportProblem, tint = RiskDanger, size = 36.dp, iconSize = 18.dp)
                         Spacer(Modifier.width(10.dp))
                         Text(
-                            "Signaux d'Alerte Majeurs",
+                            "Points à vérifier",
                             fontWeight = FontWeight.ExtraBold,
                             fontFamily = PoppinsFontFamily,
                             color = RiskDanger,
@@ -285,24 +336,14 @@ fun JobOfferScreen(
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text("Pourquoi ce verdict ?", fontWeight = FontWeight.Bold, fontFamily = PoppinsFontFamily, color = VigiaTextPrimary, fontSize = 14.sp)
-                            Text("Score ${assessment.score}/100 • ouvre les éléments de preuve", fontFamily = PoppinsFontFamily, color = VigiaTextSecondary, fontSize = 11.5.sp)
+                            Text("Comprendre les raisons", fontFamily = PoppinsFontFamily, color = VigiaTextSecondary, fontSize = 11.5.sp)
                         }
                         Icon(if (showAssessmentDetails) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, tint = amberColor)
                     }
                     AnimatedVisibility(showAssessmentDetails) {
                         Column {
                             Spacer(Modifier.height(12.dp))
-                            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                RiskGauge(score = assessment.score, level = assessment.level, size = 150.dp)
-                            }
-                            Spacer(Modifier.height(10.dp))
                             Text(assessment.summary, fontFamily = PoppinsFontFamily, color = VigiaTextSecondary, fontSize = 12.5.sp, lineHeight = 18.sp)
-                            if (assessment.scamDna.isNotEmpty()) {
-                                Spacer(Modifier.height(12.dp))
-                                assessment.scamDna.forEach { trait ->
-                                    ScamDnaCard(category = trait.category, label = trait.label, strength = trait.strength, evidence = trait.evidence)
-                                }
-                            }
                         }
                     }
                 }

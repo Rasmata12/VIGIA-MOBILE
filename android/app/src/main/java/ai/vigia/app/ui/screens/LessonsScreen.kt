@@ -105,5 +105,29 @@ fun LessonsScreen(onBack: () -> Unit) {
             ),
             color = VigiaViolet
         )
+
+        SecurityLessonCard(
+            title = "Éviter les faux frais de livraison",
+            category = "SMS ET LIVRAISON",
+            takeaway = "Un SMS qui réclame un petit paiement pour débloquer un colis peut servir à voler tes coordonnées ou ton code de paiement.",
+            tips = listOf(
+                "Ne clique pas sur le lien du SMS : ouvre toi-même l'application ou le site officiel du livreur.",
+                "Vérifie le numéro de suivi auprès de la boutique où tu as passé commande.",
+                "Ne donne jamais ton code reçu par SMS pour recevoir un colis."
+            ),
+            color = Color(0xFF0E9F6E)
+        )
+
+        SecurityLessonCard(
+            title = "Garder son compte WhatsApp",
+            category = "MESSAGERIE",
+            takeaway = "Le code reçu par SMS permet de prendre le contrôle de ton compte. Même un ami ou un agent qui le demande ne doit pas le recevoir.",
+            tips = listOf(
+                "Ne partage jamais le code de connexion reçu par SMS.",
+                "Active la vérification en deux étapes dans les réglages de WhatsApp.",
+                "Si ton compte est bloqué, récupère-le depuis l'application officielle et préviens tes proches par un autre moyen."
+            ),
+            color = VigiaPrimaryBright
+        )
     }
 }

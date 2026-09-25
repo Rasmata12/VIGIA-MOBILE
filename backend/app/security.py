@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import re
 import secrets
 import time
 from datetime import datetime, timedelta, timezone
@@ -21,19 +20,11 @@ from app.models import AuthSession, RateLimitCounter, User, utcnow
 settings = get_settings()
 bearer = HTTPBearer(auto_error=False)
 
-PASSWORD_RULES = (
-    "Le mot de passe doit contenir au moins 10 caracteres, une majuscule, "
-    "une minuscule et un chiffre."
-)
+PASSWORD_RULES = "Le mot de passe doit contenir au moins 6 caractères."
 
 
 def validate_password(password: str) -> None:
-    if (
-        len(password) < 10
-        or not re.search(r"[a-z]", password)
-        or not re.search(r"[A-Z]", password)
-        or not re.search(r"\d", password)
-    ):
+    if len(password) < 6:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, PASSWORD_RULES)
 
 

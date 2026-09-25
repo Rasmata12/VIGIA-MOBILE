@@ -309,12 +309,6 @@ fun AnalyzeScreen(
 
 @Composable
 fun ResultSection(result: AnalysisEntity, offline: Boolean) {
-    val keySignals = remember(result.id) {
-        parseSignals(result.signalsJson)
-            .filter { it.weight > 0 && it.code != "ai_action" }
-            .sortedByDescending { it.weight }
-            .take(3)
-    }
     val firstAction = remember(result.id) {
         parseSignals(result.signalsJson).firstOrNull { it.code == "ai_action" }?.label
     }
@@ -341,25 +335,13 @@ fun ResultSection(result: AnalysisEntity, offline: Boolean) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(riskLabel(result.level), fontFamily = PoppinsFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = color)
-                Text("Indice de risque", fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = VigiaTextSecondary)
+                Text("Niveau de risque", fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = VigiaTextSecondary)
             }
             InfoChip("${result.score}/100", color)
         }
 
         Spacer(Modifier.height(14.dp))
         Text(result.summary, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 21.sp, color = VigiaTextPrimary)
-
-        if (keySignals.isNotEmpty()) {
-            Spacer(Modifier.height(12.dp))
-            Text("\u00c0 retenir", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = VigiaTextPrimary)
-            keySignals.forEach { signal ->
-                Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.Top) {
-                    Box(Modifier.padding(top = 6.dp).size(6.dp).clip(CircleShape).background(color))
-                    Spacer(Modifier.width(8.dp))
-                    Text(signal.label, Modifier.weight(1f), fontFamily = PoppinsFontFamily, fontSize = 12.5.sp, lineHeight = 18.sp, color = VigiaTextSecondary)
-                }
-            }
-        }
 
         firstAction?.let { action ->
             Spacer(Modifier.height(12.dp))
@@ -372,7 +354,7 @@ fun ResultSection(result: AnalysisEntity, offline: Boolean) {
 
         if (offline || !result.syncedWithServer) {
             Spacer(Modifier.height(10.dp))
-            InfoChip("Analyse locale", RiskSuspicious)
+            InfoChip("Résultat calculé sans réseau", RiskSuspicious)
         }
     }
 }
@@ -438,7 +420,7 @@ private fun MediaAnalyzePanel() {
             if (selectedUri != null) {
                 Spacer(Modifier.height(10.dp))
                 Text(if (selectedType.startsWith("video/")) "Vidéo sélectionnée — VIGIA analysera plusieurs images extraites." else "Photo sélectionnée", fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = VigiaTextPrimary, fontWeight = FontWeight.SemiBold)
-                previewBitmap?.let { bmp -> Image(bitmap = bmp.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Fit) }
+                previewBitmap?.let { bmp -> Image(bitmap = bmp.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Fit) }
                 Spacer(Modifier.height(10.dp))
                 Button(
                     onClick = {

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Alert, AuthSession, CommunityReport, Device, Event, User, UserSettings
-from app.schemas import AlertOut, DeleteAccountIn, SettingsFullOut, SettingsFullPatch, UserOut
+from app.schemas import AlertOut, DeleteAccountIn, ProfilePatch, SettingsFullOut, SettingsFullPatch, UserOut
 from app.security import current_user, verify_password
 
 router = APIRouter(prefix="/account", tags=["account"])
@@ -59,6 +60,21 @@ def mark_read(alert_id: str, user: User = Depends(current_user), db: Session = D
 
 @router.get("/profile", response_model=UserOut)
 def profile(user: User = Depends(current_user)) -> User:
+    return user
+
+
+@router.patch("/profile", response_model=UserOut)
+def update_profile(payload: ProfilePatch, user: User = Depends(current_user), db: Session = Depends(get_db)) -> User:
+    if payload.email is not None:
+        user.email = str(payload.email).strip().lower()
+    if payload.full_name is not None:
+        user.full_name = payload.full_name.strip()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Cette adresse e-mail est déjà utilisée.")
+    db.refresh(user)
     return user
 
 

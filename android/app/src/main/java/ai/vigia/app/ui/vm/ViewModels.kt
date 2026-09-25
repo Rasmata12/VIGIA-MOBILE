@@ -32,6 +32,8 @@ import ai.vigia.app.net.MomentResponse
 import ai.vigia.app.net.ShieldResponse
 import ai.vigia.app.net.PrivacySummaryDto
 import ai.vigia.app.net.DeviceDto
+import ai.vigia.app.net.AlertDto
+import ai.vigia.app.net.ProfilePatch
 import ai.vigia.app.guard.GuardPreferences
 import ai.vigia.app.guard.PermissionCenter
 
@@ -115,9 +117,7 @@ class AuthViewModel : ViewModel() {
 
     private fun validateRegister(email: String, password: String, confirm: String): String? = when {
         email.isBlank() || !email.contains("@") -> "Entre une adresse email valide."
-        password.length < 10 -> "Le mot de passe doit contenir au moins 10 caractères."
-        !password.any { it.isUpperCase() } || !password.any { it.isLowerCase() } || !password.any { it.isDigit() } ->
-            "Le mot de passe doit contenir une majuscule, une minuscule et un chiffre."
+        password.length < 6 -> "Choisis un mot de passe d'au moins 6 caractères."
         password != confirm -> "Les deux mots de passe ne correspondent pas."
         else -> null
     }
@@ -244,6 +244,8 @@ class HistoryViewModel : ViewModel() {
 
 data class SettingsUiState(
     val email: String = "",
+    val fullName: String = "",
+    val profileSaving: Boolean = false,
     val notifications: Boolean = true,
     val aiEnabled: Boolean = true,
     val serverReachable: Boolean? = null,
@@ -262,6 +264,9 @@ class SettingsViewModel : ViewModel() {
 
     fun load() {
         viewModelScope.launch {
+            runCatching { api.me() }.onSuccess { profile ->
+                _state.value = _state.value.copy(email = profile.email, fullName = profile.fullName)
+            }
             runCatching { api.health() }.onSuccess {
                 _state.value = _state.value.copy(serverReachable = it.status == "ok", aiConfigured = it.aiEnabled)
             }.onFailure {
@@ -275,6 +280,22 @@ class SettingsViewModel : ViewModel() {
 
     fun setNotifications(enabled: Boolean) = patch(notifications = enabled)
     fun setAi(enabled: Boolean) = patch(ai = enabled)
+
+    fun updateProfile(email: String, fullName: String) {
+        if (email.isBlank() || !email.contains("@")) {
+            _state.value = _state.value.copy(message = "Entre une adresse e-mail valide.")
+            return
+        }
+        _state.value = _state.value.copy(profileSaving = true, message = null)
+        viewModelScope.launch {
+            runCatching { api.updateProfile(ProfilePatch(email.trim(), fullName.trim())) }
+                .onSuccess {
+                    ServiceLocator.tokens.email = it.email
+                    _state.value = _state.value.copy(email = it.email, fullName = it.fullName, profileSaving = false, message = "Ton compte a été mis à jour.")
+                }
+                .onFailure { _state.value = _state.value.copy(profileSaving = false, message = it.apiErrorMessage("Modification impossible.")) }
+        }
+    }
 
     private fun patch(notifications: Boolean? = null, ai: Boolean? = null) {
         viewModelScope.launch {
@@ -294,6 +315,41 @@ class SettingsViewModel : ViewModel() {
     }
 
     fun clearMessage() { _state.value = _state.value.copy(message = null) }
+}
+
+// ---------------------------------------------------------------- NOTIFICATIONS
+
+data class AlertsUiState(
+    val loading: Boolean = true,
+    val alerts: List<AlertDto> = emptyList(),
+    val error: String? = null
+)
+
+class AlertsViewModel : ViewModel() {
+    private val api = ServiceLocator.api
+    private val _state = MutableStateFlow(AlertsUiState())
+    val state: StateFlow<AlertsUiState> = _state.asStateFlow()
+
+    init { load() }
+
+    fun load() {
+        _state.value = _state.value.copy(loading = true, error = null)
+        viewModelScope.launch {
+            runCatching { api.alerts() }
+                .onSuccess { _state.value = AlertsUiState(loading = false, alerts = it) }
+                .onFailure { _state.value = AlertsUiState(loading = false, error = it.apiErrorMessage("Impossible de charger les notifications.")) }
+        }
+    }
+
+    fun markRead(id: String) {
+        viewModelScope.launch {
+            runCatching { api.markAlertRead(id) }.onSuccess {
+                _state.value = _state.value.copy(alerts = _state.value.alerts.map { alert ->
+                    if (alert.id == id) alert.copy(read = true) else alert
+                })
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------- BEFORE PAY

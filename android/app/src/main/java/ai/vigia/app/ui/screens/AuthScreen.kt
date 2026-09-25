@@ -193,7 +193,8 @@ fun AuthScreen(viewModel: AuthViewModel, onAuthenticated: () -> Unit) {
                     value = password,
                     onValueChange = { password = it },
                     label = "Mot de passe",
-                    isPassword = true
+                    isPassword = true,
+                    supporting = if (isRegister) "6 caractères minimum." else null
                 )
 
                 AnimatedVisibility(

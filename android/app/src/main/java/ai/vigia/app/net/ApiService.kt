@@ -68,6 +68,9 @@ interface ApiService {
     @POST("account/alerts/{id}/read")
     suspend fun markAlertRead(@Path("id") id: String)
 
+    @PATCH("account/profile")
+    suspend fun updateProfile(@Body body: ProfilePatch): UserResponse
+
     @GET("account/settings")
     suspend fun settings(): SettingsDto
 

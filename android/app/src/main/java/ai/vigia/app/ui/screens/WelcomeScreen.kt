@@ -130,26 +130,6 @@ fun WelcomeScreen(
                             textAlign = TextAlign.Center,
                             fontSize = 20.sp
                         )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "VIGIA",
-                                style = MaterialTheme.typography.headlineLarge,
-                                fontFamily = PoppinsFontFamily,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = VigiaTextPrimary,
-                                letterSpacing = 1.sp
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Box(
-                                Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(VigiaPrimary.copy(alpha = 0.12f))
-                                    .padding(horizontal = 7.dp, vertical = 2.dp)
-                            ) {
-                                Text("AI", fontSize = 14.sp, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.ExtraBold, color = VigiaPrimary)
-                            }
-                        }
-
                         Spacer(Modifier.height(12.dp))
 
                         Text(

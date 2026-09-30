@@ -142,36 +142,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                 )
             }
 
-            Spacer(Modifier.height(28.dp))
-
-            // Marque VIGIA AI avec badge en dégradé
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "VIGIA",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontFamily = PoppinsFontFamily,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = VigiaTextPrimary,
-                    fontSize = 28.sp,
-                    letterSpacing = (-0.5).sp
-                )
-                Spacer(Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(SolidColor(VigiaPrimary))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        text = "AI",
-                        fontSize = 13.sp,
-                        fontFamily = PoppinsFontFamily,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        letterSpacing = 0.5.sp
-                    )
-                }
-            }
+            Spacer(Modifier.height(34.dp))
 
             Spacer(Modifier.height(6.dp))
 

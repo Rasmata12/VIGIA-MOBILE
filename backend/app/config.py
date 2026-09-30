@@ -18,22 +18,18 @@ class Settings(BaseSettings):
     virustotal_key: str = ""
 
     # --- Couche IA : jamais d'API payante par defaut -----------------------
-    # "ollama"            -> modele local reel (Llama, Qwen, Mistral...) execute par Ollama,
-    #                        gratuit et illimite, et rien ne quitte le serveur (ideal pour une
-    #                        app de protection numerique : le contenu de l'utilisateur ne part
-    #                        jamais vers un tiers).
-    # "openai_compatible" -> pour brancher une API gratuite tierce compatible (ex : niveau
-    #                        gratuit de Groq/OpenRouter) si tu preferes ne pas heberger de modele.
+    # "ollama"            -> modele local reel execute par Ollama.
+    # "openai_compatible" -> API tierce compatible OpenAI (Groq/OpenRouter).
     # "none"               -> IA desactivee, l'heuristique seule fait foi (comportement honnete,
     #                        jamais de resultat invente).
-    ai_provider: str = "ollama"
+    ai_provider: str = "openai_compatible"
 
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
 
-    oc_base_url: str = ""       # ex: https://api.groq.com/openai/v1
+    oc_base_url: str = "https://api.groq.com/openai/v1"
     oc_api_key: str = ""
-    oc_model: str = ""
+    oc_model: str = "openai/gpt-oss-20b"
 
     # Hugging Face Inference Providers — le jeton reste exclusivement côté serveur.
     hf_token: str = ""

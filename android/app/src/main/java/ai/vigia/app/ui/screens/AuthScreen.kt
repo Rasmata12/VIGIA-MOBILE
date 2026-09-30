@@ -94,27 +94,7 @@ fun AuthScreen(viewModel: AuthViewModel, onAuthenticated: () -> Unit) {
                 )
             }
 
-            Spacer(Modifier.height(14.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "VIGIA",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontFamily = PoppinsFontFamily,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = VigiaTextPrimary,
-                    letterSpacing = 1.sp
-                )
-                Spacer(Modifier.width(6.dp))
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(VigiaPrimary.copy(alpha = 0.12f))
-                        .padding(horizontal = 7.dp, vertical = 2.dp)
-                ) {
-                    Text("AI", fontSize = 12.sp, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.ExtraBold, color = VigiaPrimary)
-                }
-            }
+            Spacer(Modifier.height(22.dp))
 
             Spacer(Modifier.height(4.dp))
 
